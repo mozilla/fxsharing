@@ -1,0 +1,44 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+:host {
+  --breadcrumb-icon-size: var(--icon-size-xsmall);
+  --breadcrumb-gap: var(--space-small);
+
+  display: flex;
+  font-size: var(--font-size-small);
+}
+
+ol {
+  list-style: none;
+  padding-inline-start: initial;
+  margin-block: initial;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--breadcrumb-gap);
+}
+
+li {
+  display: flex;
+  align-items: center;
+  gap: var(--breadcrumb-gap);
+
+  &:not(:last-child)::after {
+    content: "";
+    --icon-url: url("assets/icons/arrow-right-12.svg");
+    background-color: currentColor;
+    --webkit-mask: var(--icon-url);
+    mask: var(--icon-url);
+    mask-size: contain;
+    mask-repeat: no-repeat;
+
+    display: inline-flex;
+    width: var(--breadcrumb-icon-size);
+    height: var(--breadcrumb-icon-size);
+  }
+
+  &:dir(rtl):not(:last-child)::after {
+    --icon-url: url("assets/icons/arrow-left-12.svg");
+  }
+}

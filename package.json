@@ -1,0 +1,16 @@
+{
+  "name": "fxsharing",
+  "version": "1.0.0",
+  "description": "o hai 👋 prototyping content sharing in firefox",
+  "homepage": "https://github.com/mozilla/fxsharing#readme",
+  "bugs": {
+    "url": "https://github.com/mozilla/fxsharing/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mozilla/fxsharing.git"
+  },
+  "license": "",
+  "author": "",
+  "scripts": {}
+}
