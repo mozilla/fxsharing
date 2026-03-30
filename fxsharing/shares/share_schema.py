@@ -3,11 +3,10 @@ share_schema = {
     "title": "ShareForm",
     "description": "Schema for creating a shared collection of links.",
     "type": "object",
-    "required": ["type", "fxa_id", "title", "links"],
+    "required": ["type", "title", "links"],
     "additionalProperties": False,
     "properties": {
         "type": {"type": "string", "enum": ["tab_group", "bookmark_folder", "tabs"]},
-        "fxa_id": {"type": "string"},
         "title": {"type": "string"},
         "links": {
             "type": "array",

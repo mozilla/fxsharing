@@ -3,56 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ share.title }}</title>
-    {{ share_dict|json_script:"share-data" }}
-    <script type="module">
-      const share = JSON.parse(
-        document.getElementById("share-data").textContent,
-      );
-      console.log(share);
-
-      function createElement(tag) {
-        let el = document.createElement(tag);
-        return el;
-      }
-
-      function createShareLinks(object) {
-        let ul = createElement("ul");
-        for (let o of object.links) {
-          if (o.url) {
-            let li = createElement("li");
-            let a = createElement("a");
-            a.href = o.url;
-            a.textContent = o.url;
-            let span = createElement("span");
-            span.textContent = o.title ?? o.url;
-            li.append(span, a);
-            ul.append(li);
-          } else if (o.fxa_id) {
-            ul.append(createShareLinks(o));
-          }
-        }
-        let h5 = createElement("li");
-        h5.textContent = object.title;
-        let div = createElement("div");
-        div.append(h5, ul);
-        return div;
-      }
-
-      const body = document.querySelector("body");
-      console.log(body);
-
-      let h1 = createElement("h1");
-      h1.textContent = share.title;
-
-      let h3 = createElement("h3");
-      h3.textContent = share.created_at;
-
-      let div = createShareLinks(share);
-
-      body.append(h1, h3, div);
-    </script>
+    <title></title>
+    <link rel="stylesheet" href="/static/styles/common-shared.css" />
+    <link rel="stylesheet" href="/static/styles/moz-share.css" />
+    <script src="/static/components/moz-share.mjs" type="module"></script>
   </head>
 
-  <body style="background-color: white"></body>
+  <body>
+    <moz-share></moz-share>
+  </body>
 </html>

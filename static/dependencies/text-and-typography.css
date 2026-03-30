@@ -1,0 +1,38 @@
+:root {
+  font: message-box;
+}
+
+h1, .heading-xlarge {
+  font-weight: var(--heading-font-weight);
+  font-size: var(--heading-font-size-xlarge);
+}
+
+h2, .heading-large {
+  font-weight: var(--heading-font-weight);
+  font-size: var(--heading-font-size-large);
+}
+
+h3, .heading-medium {
+  font-weight: var(--heading-font-weight);
+  font-size: var(--heading-font-size-medium);
+}
+
+.text-deemphasized {
+  font-size: var(--font-size-small);
+  color: var(--text-color-deemphasized);
+}
+
+.text-error {
+  color: var(--text-color-error);
+  font-weight: var(--font-weight-semibold);
+}
+
+.text-truncated-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-box-trim-start {
+  margin-block-start: calc(.5cap - .5lh);
+}
