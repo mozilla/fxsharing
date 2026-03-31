@@ -49,8 +49,7 @@ class Link(models.Model):
     def __str__(self):
         return self.title or self.url
 
-    # TODO: This needs to be
-    def get_opengrah_data(self):
+    def get_opengraph_data(self):
         headers = {
             "User-Agent": "Mozilla/5.0 (platform; rv:gecko-version) Gecko/gecko-trail Firefox/firefox-version"
         }
@@ -83,7 +82,7 @@ class Link(models.Model):
             share_id=str(self.share.id),
             url=self.url,
             title=self.title,
-            opengraph=self.get_opengrah_data(),
+            opengraph=self.get_opengraph_data(),
         )
 
         return this
