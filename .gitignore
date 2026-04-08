@@ -137,3 +137,58 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Python
+*.pyc
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.venv/
+env/
+venv/
+ENV/
+bin/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.base-hashed
+*.pyi
+*.whl
+# Generic python log files
+*.log
+# Pip
+pip-wheel-metadata/
+# Unit test cache
+.nox/
+.tox/
+# Translations
+*.mo
+*.pot
+# Coverage
+.coverage
+.coverage.*
+# Sphinx documentation
+docs/_build/
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-*
+media/
+.env
+
+# IDE-specific files (uncomment as needed)
+# .idea/  # for PyCharm
+.vscode/ # for VS Code
+# .sublime/ # for Sublime Text
+
+# OS-specific files
+.DS_Store
+Thumbs.db
