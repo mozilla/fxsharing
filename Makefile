@@ -7,6 +7,9 @@ help:
 	@echo "  run      Start the development server"
 	@echo "  migrate  Apply database migrations"
 	@echo "  test     Run tests"
+	@echo "  up       Start all services via docker compose"
+	@echo "  down     Stop all services"
+	@echo "  logs     Tail docker compose logs"
 
 setup:
 	uv sync
@@ -20,3 +23,12 @@ migrate:
 
 test:
 	uv run python manage.py test
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f

@@ -8,6 +8,7 @@ dependencies = [
     "beautifulsoup4>=4.14.3",
     "django>=6.0.3",
     "django-environ>=0.11.0",
+    "gunicorn>=23.0.0",
     "jsonschema>=4.26.0",
     "psycopg[binary]>=3.2.0",
     "requests>=2.32.5",
