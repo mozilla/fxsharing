@@ -4,18 +4,35 @@ Prototype for Firefox content sharing — lets users create and share collection
 
 ## Setup
 
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/). Everything else (Python, Postgres) runs inside Docker.
+
 ```bash
-# Install dependencies and generate .env (with SECRET_KEY pre-filled)
-make setup
-
-# Set DATABASE_URL in .env, then run migrations
-make migrate
-
-# Run the dev server
-make run
+make setup   # generate .env with a random SECRET_KEY
+make up      # build and start app and Postgres
 ```
 
-`make setup` copies `.env.example` to `.env` and generates a `SECRET_KEY`. You still need to set `DATABASE_URL` to a local PostgreSQL instance before running.
+The app will be available at `http://localhost:8000`. Migrations run automatically on `make up`.
+
+### Without Docker
+
+Requires [Python 3.13+](https://www.python.org/), [uv](https://docs.astral.sh/uv/getting-started/installation/), and a running [PostgreSQL](https://www.postgresql.org/download/) instance.
+
+```bash
+make setup   # install dependencies and generate .env
+```
+
+Set `DATABASE_URL` in `.env` to your local Postgres connection string, e.g.:
+
+```
+DATABASE_URL=postgres://localhost/fxsharing
+```
+
+Then:
+
+```bash
+make migrate  # apply migrations
+make run      # start the dev server
+```
 
 ## API
 
@@ -27,10 +44,7 @@ make run
 
 This is an early prototype. Known gaps before production:
 
-- `SECRET_KEY` is hardcoded in `settings.py` — treat as compromised, will move to env var
 - No authentication (FxA integration planned)
 - No rate limiting
-- SQLite only — PostgreSQL migration planned
 - OpenGraph scraping is synchronous — will move to Celery workers
 - No tests
-- `DEBUG = True` and `ALLOWED_HOSTS = []` — not suitable for deployment as-is

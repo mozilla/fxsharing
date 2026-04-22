@@ -30,23 +30,19 @@ RUN uv sync --frozen --no-dev
 
 FROM python-builder AS static-builder
 
-# Placeholder values — Django settings require SECRET_KEY and
-# DATABASE_URL to be set even during collectstatic
+# Placeholder values 
 ARG SECRET_KEY=placeholder
 ARG DATABASE_URL=postgres://placeholder/placeholder
 ENV SECRET_KEY=${SECRET_KEY}
 ENV DATABASE_URL=${DATABASE_URL}
 
-# Git revision baked into version.json at build time
-ARG GIT_REVISION=unknown
-
 COPY . /app/
 
 RUN python manage.py collectstatic --noinput
 
-# Write version.json — served at /__version__ by convention on MozCloud services
-RUN printf '{"commit":"%s","version":"unknown","source":"https://github.com/mozilla/fxsharing"}\n' \
-    "${GIT_REVISION}" > /app/staticfiles/version.json
+# version.json is created by CI before docker build with github workflows
+# This version.json is a stub used for local builds.
+COPY version.json /app/staticfiles/version.json
 
 # Stage 3: Runtime image
 FROM python:3.13-slim-bookworm AS server
