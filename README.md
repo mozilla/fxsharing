@@ -36,6 +36,7 @@ make run      # start the dev server
 
 ## API
 
+- `GET /__lbheartbeat__` — load balancer health check
 - `POST /create_share` — create a share (JSON body, see `share_schema.py` for schema)
 - `GET /<uuid>` — view share page
 - `GET /api/<uuid>` — share data as JSON

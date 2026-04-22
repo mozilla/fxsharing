@@ -16,9 +16,16 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 
+
+def lbheartbeat(request):
+    return JsonResponse({"status": "ok"})
+
+
 urlpatterns = [
+    path("__lbheartbeat__", lbheartbeat, name="lbheartbeat"),
     path("admin/", admin.site.urls),
     path("", include("fxsharing.shares.urls")),
 ]
