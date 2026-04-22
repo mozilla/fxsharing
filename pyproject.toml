@@ -7,6 +7,8 @@ requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4>=4.14.3",
     "django>=6.0.3",
+    "django-allauth>=65.16.1",
+    "django-allauth[socialaccount]>=65.16.1",
     "django-environ>=0.11.0",
     "dockerflow>=2026.3.0",
     "gunicorn>=23.0.0",

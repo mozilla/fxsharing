@@ -29,6 +29,8 @@ DEBUG = env("DEBUG")
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
+LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/auth-complete")
+
 
 # Application definition
 
@@ -40,7 +42,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "fxsharing.shares",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.fxa",
 ]
+
+# Use the Dummy social provider for local testing
+if DEBUG:
+    INSTALLED_APPS += [
+        "allauth.socialaccount.providers.dummy",
+    ]
 
 MIDDLEWARE = [
     # Must be first — intercepts /__lbheartbeat__, /__heartbeat__, /__version__
@@ -52,9 +64,32 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "fxsharing.urls"
+
+# FxA configuration (django-allauth)
+
+# Only allow FxA login - no site login/logout pages
+SOCIALACCOUNT_ONLY = True
+ACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_PROVIDERS = {
+    "fxa": {
+        "APP": {
+            "client_id": env("FXA_CLIENT_ID", default=""),
+            "secret": env("FXA_CLIENT_SECRET", default=""),
+        },
+        "SCOPE": ["profile"],
+        "OAUTH_ENDPOINT": env(
+            "FXA_OAUTH_HOST", default="https://oauth.stage.mozaws.net/v1"
+        ),
+        "PROFILE_ENDPOINT": env(
+            "FXA_PROFILE_HOST", default="https://profile.stage.mozaws.net/v1"
+        ),
+    }
+}
 
 TEMPLATES = [
     {
@@ -69,6 +104,11 @@ TEMPLATES = [
             ],
         },
     },
+]
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 WSGI_APPLICATION = "fxsharing.wsgi.application"

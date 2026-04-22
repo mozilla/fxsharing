@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
@@ -9,6 +10,12 @@ from jsonschema import ValidationError, validate
 
 from .models import Link, Share
 from .share_schema import share_schema
+
+import logging
+from django.http import HttpResponseBadRequest
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def shares(request):
@@ -21,7 +28,6 @@ def shares(request):
     return HttpResponse(
         f'<div style="background-color:white;"><h1>Shares</h1>{template}</div>'
     )
-
 
 def api_share(request, share_id):
     share = get_object_or_404(Share, id=share_id)
@@ -44,9 +50,9 @@ def view_share(request, share_id):
     return render(request, "shares/view_share.html")
 
 
-def create_share_from_data(data, parent_share=None):
+def create_share_from_data(data, user, parent_share=None):
     share = Share.objects.create(
-        # user_id="abc123",
+        user=user,
         title=data["title"],
         parent_share=parent_share,
     )
@@ -56,29 +62,32 @@ def create_share_from_data(data, parent_share=None):
         if obj.get("url"):
             links.append(Link(share=share, title=obj.get("title", ""), url=obj["url"]))
         elif obj.get("links"):
-            create_share_from_data(obj, parent_share=share)
+            create_share_from_data(obj, user=user, parent_share=share)
 
     Link.objects.bulk_create(links)
 
     return share
 
 
+# TODO remove csrf_exempt soon
 @csrf_exempt
 @require_POST
+@login_required
 def create_share(request):
     try:
         data = json.loads(request.body)
-
         validate(instance=data, schema=share_schema)
 
     except json.JSONDecodeError:
         return HttpResponseBadRequest("Invalid JSON in request body")
 
     except ValidationError as e:
-        return HttpResponseBadRequest(f"JSON validation error: {e.message}")
+        return HttpResponseBadRequest(f"JSON validation error: {str(e)}")
 
-    share = create_share_from_data(data=data)
-
+    share = create_share_from_data(data=data, user=request.user)
     url = request.build_absolute_uri(f"/{share.id}")
-
     return JsonResponse({"url": url})
+
+
+def auth_complete(request):
+    return render(request, "shares/view_auth_complete.html")

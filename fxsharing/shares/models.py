@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 import requests
@@ -8,7 +9,11 @@ from bs4 import BeautifulSoup
 
 class Share(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # user_id = models.CharField(max_length=255)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,  # TODO: file a bug for soft delete.
+        related_name="shares",
+    )
     title = models.CharField(max_length=255)
     parent_share = models.ForeignKey(
         "self",
@@ -26,7 +31,7 @@ class Share(models.Model):
         this = dict(
             id=str(self.id),
             created_at=str(self.created_at),
-            # user_id=self.user_id,
+            user=str(self.user),
             title=self.title,
         )
 
