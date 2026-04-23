@@ -43,6 +43,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Must be first — intercepts /__lbheartbeat__, /__heartbeat__, /__version__ before other middleware
+    'dockerflow.django.middleware.DockerflowMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

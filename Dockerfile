@@ -40,10 +40,6 @@ COPY . /app/
 
 RUN python manage.py collectstatic --noinput
 
-# version.json is created by CI before docker build with github workflows
-# This version.json is a stub used for local builds.
-COPY version.json /app/staticfiles/version.json
-
 # Stage 3: Runtime image
 FROM python:3.13-slim-bookworm AS server
 
