@@ -123,6 +123,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dockerflow"
+version = "2026.3.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/03/935f8399094611981b37634a7ee078484b3995f744135339e51385638f6c/dockerflow-2026.3.4.tar.gz", hash = "sha256:6cc7fcab2a078d06aeca8b02e22fd7f6766dca322fb30aed6910684dbc08690c", size = 68701, upload-time = "2026-03-04T09:01:28.178Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/86/b9/2d7bf30eb0c24e60e61e4f6ae7574e123d3fa51b39a612e146c94158446a/dockerflow-2026.3.4-py2.py3-none-any.whl", hash = "sha256:38fe0ad30a4aedf68e589919695d502fc6f584a761b56a91f56e80cbadfbf61a", size = 36424, upload-time = "2026-03-04T09:01:26.631Z" },
+]
+
+[[package]]
 name = "fxsharing"
 version = "0.1.0"
 source = { virtual = "." }
@@ -130,6 +139,7 @@ dependencies = [
     { name = "beautifulsoup4" },
     { name = "django" },
     { name = "django-environ" },
+    { name = "dockerflow" },
     { name = "gunicorn" },
     { name = "jsonschema" },
     { name = "psycopg", extra = ["binary"] },
@@ -141,6 +151,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.14.3" },
     { name = "django", specifier = ">=6.0.3" },
     { name = "django-environ", specifier = ">=0.11.0" },
+    { name = "dockerflow", specifier = ">=2026.3.4" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },

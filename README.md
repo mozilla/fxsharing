@@ -36,6 +36,11 @@ make run      # start the dev server
 
 ## API
 
+The `/__lbheartbeat__`, `/__heartbeat__`, and `/__version__` endpoints are provided by the [python-dockerflow](https://github.com/mozilla-services/python-dockerflow) library.
+
+- `GET /__lbheartbeat__` — load balancer health check
+- `GET /__heartbeat__` — application health check
+- `GET /__version__` — deployed version info
 - `POST /create_share` — create a share (JSON body, see `share_schema.py` for schema)
 - `GET /<uuid>` — view share page
 - `GET /api/<uuid>` — share data as JSON
