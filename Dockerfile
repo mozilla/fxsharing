@@ -30,12 +30,6 @@ RUN uv sync --frozen --no-dev
 
 FROM python-builder AS static-builder
 
-# Placeholder values 
-ARG SECRET_KEY=placeholder
-ARG DATABASE_URL=postgres://placeholder/placeholder
-ENV SECRET_KEY=${SECRET_KEY}
-ENV DATABASE_URL=${DATABASE_URL}
-
 COPY . /app/
 
 RUN python manage.py collectstatic --noinput

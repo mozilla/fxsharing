@@ -23,7 +23,7 @@ environ.Env.read_env(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-SECRET_KEY = env('SECRET_KEY')
+SECRET_KEY = env('SECRET_KEY', default='placeholder-for-docker-builds')
 
 DEBUG = env('DEBUG')
 
@@ -78,7 +78,7 @@ WSGI_APPLICATION = 'fxsharing.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': env.db('DATABASE_URL')
+    'default': env.db('DATABASE_URL', default='postgres://localhost/fxsharing')
 }
 
 
