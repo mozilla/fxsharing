@@ -18,8 +18,10 @@ Including another URLconf
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
+from django.views.decorators.http import require_GET
 
 
+@require_GET
 def lbheartbeat(request):
     return JsonResponse({"status": "ok"})
 
