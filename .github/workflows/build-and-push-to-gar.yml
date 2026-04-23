@@ -1,0 +1,24 @@
+name: Push container image to MozCloud GAR
+on:
+  workflow_call:
+    inputs:
+      image_tag_metadata:
+        required: true
+        description: Metadata to append to image tag (e.g. dev, stage, prod)
+        default: dev
+        type: string
+
+jobs:
+  build-and-push:
+    name: Build and push Docker image
+    permissions:
+      contents: read
+      id-token: write
+    # version 6.2.3
+    uses: mozilla/deploy-actions/.github/workflows/build-and-push.yml@47edfe10709f2978fdcb5fd3037599d72aa10661
+    with:
+      image_name: fx-sharing
+      gar_name: ${{ vars.GCP_MOZCLOUD_GAR_NAME_PROD }}
+      project_id: ${{ vars.GCP_MOZCLOUD_PROJECT_ID_PROD }}
+      workload_identity_pool_project_number: ${{ vars.GCPV2_WORKLOAD_IDENTITY_POOL_PROJECT_NUMBER }}
+      image_tag_metadata: ${{ inputs.image_tag_metadata }}
