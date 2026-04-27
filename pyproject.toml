@@ -19,6 +19,7 @@ dependencies = [
 dev = [
     "pytest>=9.0.3",
     "pytest-django>=4.12.0",
+    "ruff>=0.15.12",
 ]
 
 [tool.pytest.ini_options]
@@ -26,3 +27,32 @@ DJANGO_SETTINGS_MODULE = "fxsharing.settings"
 python_files = "tests.py test_*.py *_tests.py"
 norecursedirs = ".git .venv"
 testpaths = ["fxsharing"]
+
+[tool.ruff]
+exclude = ["**/migrations"]
+
+[tool.ruff.lint]
+select = [
+    "S",  # flake8-bandit
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade
+    "W",  # pycodestyle warnings
+]
+
+[tool.ruff.lint.isort]
+section-order = [
+    "future",
+    "standard-library",
+    "django",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
+
+[tool.ruff.lint.isort.sections]
+"django" = ["django"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests.py" = ["S101", "S105", "S311"]

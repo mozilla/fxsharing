@@ -4,6 +4,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+
 from jsonschema import ValidationError, validate
 
 from .models import Link, Share
