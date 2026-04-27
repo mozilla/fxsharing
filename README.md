@@ -45,6 +45,16 @@ The `/__lbheartbeat__`, `/__heartbeat__`, and `/__version__` endpoints are provi
 - `GET /<uuid>` — view share page
 - `GET /api/<uuid>` — share data as JSON
 
+## Development
+
+### Running tests
+
+```bash
+make test
+```
+
+Tests use [pytest](https://docs.pytest.org/) with [pytest-django](https://pytest-django.readthedocs.io/). CI runs tests automatically on all pull requests.
+
 ## Prototype limitations
 
 This is an early prototype. Known gaps before production:
@@ -52,4 +62,3 @@ This is an early prototype. Known gaps before production:
 - No authentication (FxA integration planned)
 - No rate limiting
 - OpenGraph scraping is synchronous — will move to Celery workers
-- No tests
