@@ -1,8 +1,9 @@
 import uuid
 
+from django.db import models
+
 import requests
 from bs4 import BeautifulSoup
-from django.db import models
 
 
 class Share(models.Model):
@@ -51,11 +52,14 @@ class Link(models.Model):
 
     def get_opengraph_data(self):
         headers = {
-            "User-Agent": "Mozilla/5.0 (platform; rv:gecko-version) Gecko/gecko-trail Firefox/firefox-version"
+            "User-Agent": (
+                "Mozilla/5.0 (platform; rv:gecko-version)"
+                " Gecko/gecko-trail Firefox/firefox-version"
+            )
         }
 
         try:
-            r = requests.get(self.url, headers=headers)
+            r = requests.get(self.url, headers=headers, timeout=10)
             r.raise_for_status()  # Raise an exception for bad status codes
 
             soup = BeautifulSoup(r.text, "html.parser")

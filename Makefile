@@ -7,6 +7,8 @@ help:
 	@echo "  run      Start the development server"
 	@echo "  migrate  Apply database migrations"
 	@echo "  test     Run tests with pytest"
+	@echo "  lint     Run ruff linter and format check"
+	@echo "  format   Auto-format with ruff"
 	@echo "  up       Start all services via docker compose"
 	@echo "  down     Stop all services"
 	@echo "  logs     Tail docker compose logs"
@@ -23,6 +25,13 @@ migrate:
 
 test:
 	uv run pytest
+
+lint:
+	uv run ruff check fxsharing/
+	uv run ruff format --check fxsharing/
+
+format:
+	uv run ruff format fxsharing/
 
 up:
 	docker compose up -d
