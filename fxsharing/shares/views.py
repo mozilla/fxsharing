@@ -1,7 +1,10 @@
+import hashlib
 import json
+from datetime import timedelta
 
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from jsonschema import ValidationError, validate
@@ -43,11 +46,19 @@ def view_share(request, share_id):
     return render(request, "shares/view_share.html")
 
 
-def create_share_from_data(data, parent_share=None):
+SHARE_EXPIRY_DAYS = 7
+
+
+def create_share_from_data(data, parent_share=None, idempotency_key=None):
     share = Share.objects.create(
-        # user_id="abc123",
         title=data["title"],
         parent_share=parent_share,
+        expires_at=(
+            timezone.now() + timedelta(days=SHARE_EXPIRY_DAYS)
+            if parent_share is None
+            else None
+        ),
+        idempotency_key=idempotency_key,
     )
 
     links = []
@@ -76,7 +87,16 @@ def create_share(request):
     except ValidationError as e:
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
 
-    share = create_share_from_data(data=data)
+    # Server-calculates idempotency key from request body hash.
+    # Phase 4: include user ID in hash once FxA auth is wired up.
+    idempotency_key = hashlib.sha256(request.body).hexdigest()
+
+    existing = Share.objects.filter(idempotency_key=idempotency_key).first()
+    if existing:
+        url = request.build_absolute_uri(f"/{existing.id}")
+        return JsonResponse({"url": url})
+
+    share = create_share_from_data(data=data, idempotency_key=idempotency_key)
 
     url = request.build_absolute_uri(f"/{share.id}")
 
