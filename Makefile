@@ -6,7 +6,7 @@ help:
 	@echo "  setup    Install dependencies and create .env from .env.example"
 	@echo "  run      Start the development server"
 	@echo "  migrate  Apply database migrations"
-	@echo "  test     Run tests"
+	@echo "  test     Run tests with pytest"
 	@echo "  up       Start all services via docker compose"
 	@echo "  down     Stop all services"
 	@echo "  logs     Tail docker compose logs"
@@ -22,7 +22,7 @@ migrate:
 	uv run python manage.py migrate
 
 test:
-	uv run python manage.py test
+	uv run pytest
 
 up:
 	docker compose up -d
