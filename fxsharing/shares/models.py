@@ -1,3 +1,5 @@
+import secrets
+import string
 import uuid
 
 from django.conf import settings
@@ -5,6 +7,25 @@ from django.db import models
 
 import requests
 from bs4 import BeautifulSoup
+
+SHORTCODE_CHARS = string.ascii_letters + string.digits
+
+
+def generate_shortcode():
+    return "".join(secrets.choice(SHORTCODE_CHARS) for _ in range(10))
+
+
+class ShareStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    EXPIRED = "expired", "Expired"
+    DELETED = "deleted", "Deleted"
+    FLAGGED = "flagged", "Flagged"
+
+
+class SafetyStatus(models.TextChoices):
+    UNKNOWN = "unknown", "Unknown"
+    SAFE = "safe", "Safe"
+    UNSAFE = "unsafe", "Unsafe"
 
 
 class Share(models.Model):
@@ -14,6 +35,17 @@ class Share(models.Model):
         on_delete=models.CASCADE,
         related_name="shares",
     )
+    shortcode = models.CharField(
+        max_length=16, unique=True, default=generate_shortcode
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=ShareStatus,
+        default=ShareStatus.ACTIVE,
+    )
+    idempotency_key = models.CharField(
+        max_length=64, null=True, blank=True, unique=True
+    )
     title = models.CharField(max_length=255)
     parent_share = models.ForeignKey(
         "self",
@@ -22,6 +54,7 @@ class Share(models.Model):
         blank=True,
         related_name="nested_shares",
     )
+    expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -30,9 +63,12 @@ class Share(models.Model):
     def to_dict(self, this_only=False):
         this = dict(
             id=str(self.id),
+            shortcode=self.shortcode,
+            status=self.status,
+            title=self.title,
+            expires_at=str(self.expires_at) if self.expires_at else None,
             created_at=str(self.created_at),
             user=str(self.user),
-            title=self.title,
         )
 
         if not this_only:
@@ -49,8 +85,16 @@ class Share(models.Model):
 class Link(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     share = models.ForeignKey(Share, on_delete=models.CASCADE, related_name="links")
-    title = models.CharField(max_length=255, blank=True)
-    url = models.URLField(max_length=2048)
+    title = models.CharField(max_length=100, blank=True)
+    url = models.URLField(max_length=4000)
+    safety_status = models.CharField(
+        max_length=16,
+        choices=SafetyStatus,
+        default=SafetyStatus.UNKNOWN,
+    )
+    preview_title = models.CharField(max_length=255, blank=True)
+    preview_description = models.TextField(blank=True)
+    preview_image_url = models.URLField(max_length=2048, blank=True)
 
     def __str__(self):
         return self.title or self.url
@@ -65,12 +109,11 @@ class Link(models.Model):
 
         try:
             r = requests.get(self.url, headers=headers, timeout=10)
-            r.raise_for_status()  # Raise an exception for bad status codes
+            r.raise_for_status()
 
             soup = BeautifulSoup(r.text, "html.parser")
             og_tags = {}
 
-            # Find all meta tags with the 'property' attribute starting with 'og:'
             for meta_tag in soup.find_all(
                 "meta", property=lambda p: p and p.startswith("og:")
             ):
@@ -86,12 +129,14 @@ class Link(models.Model):
             return None
 
     def to_dict(self):
-        this = dict(
+        return dict(
             id=str(self.id),
             share_id=str(self.share.id),
             url=self.url,
             title=self.title,
+            safety_status=self.safety_status,
+            preview_title=self.preview_title,
+            preview_description=self.preview_description,
+            preview_image_url=self.preview_image_url,
             opengraph=self.get_opengraph_data(),
         )
-
-        return this
