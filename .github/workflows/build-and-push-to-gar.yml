@@ -22,3 +22,4 @@ jobs:
       project_id: ${{ vars.GCP_MOZCLOUD_PROJECT_ID_PROD }}
       workload_identity_pool_project_number: ${{ vars.GCPV2_WORKLOAD_IDENTITY_POOL_PROJECT_NUMBER }}
       image_tag_metadata: ${{ inputs.image_tag_metadata }}
+      should_tag_latest: true
