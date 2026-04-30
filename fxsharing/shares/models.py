@@ -35,9 +35,7 @@ class Share(models.Model):
         on_delete=models.CASCADE,
         related_name="shares",
     )
-    shortcode = models.CharField(
-        max_length=16, unique=True, default=generate_shortcode
-    )
+    shortcode = models.CharField(max_length=16, unique=True, default=generate_shortcode)
     status = models.CharField(
         max_length=16,
         choices=ShareStatus,
