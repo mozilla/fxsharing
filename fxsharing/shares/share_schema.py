@@ -1,44 +1,52 @@
 share_schema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "ShareForm",
-    "description": "Schema for creating a shared collection of links.",
+    "title": "Content Sharing Schema",
+    "description": "Schema for creating a collection of links.",
     "type": "object",
+    "version": "0.1.0",
     "required": ["type", "title", "links"],
     "additionalProperties": False,
     "properties": {
-        "type": {"type": "string", "enum": ["tab_group", "bookmark_folder", "tabs"]},
-        "title": {"type": "string"},
+        "type": {"type": "string", "enum": ["tab_group", "bookmarks", "tabs"]},
+        "title": {"type": "string", "maxLength": 100},
         "links": {
             "type": "array",
             "minItems": 1,
+            "maxItems": 30,
             "items": {
-                "oneOf": [{"$ref": "#/$defs/Link"}, {"$ref": "#/$defs/NestedShare"}]
+                "oneOf": [{"$ref": "#/$defs/Link"}, {"$ref": "#/$defs/Bookmark"}]
             },
         },
     },
     "$defs": {
         "Link": {
             "type": "object",
-            "required": ["url"],
+            "required": ["url", "title"],
             "properties": {
-                "url": {"type": "string", "format": "uri"},
-                "title": {"type": "string"},
+                "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "^https?://.*$",
+                    "maxLength": 4000,
+                },
+                "title": {"type": "string", "maxLength": 100},
             },
         },
-        "NestedShare": {
+        "Bookmark": {
             "type": "object",
             "required": ["type", "title", "links"],
             "additionalProperties": False,
             "properties": {
-                "type": {"type": "string", "const": "bookmark_folder"},
-                "title": {"type": "string"},
+                "type": {"type": "string", "const": "bookmarks"},
+                "title": {"type": "string", "maxLength": 100},
                 "links": {
                     "type": "array",
                     "minItems": 1,
+                    "maxItems": 29,
                     "items": {
                         "oneOf": [
                             {"$ref": "#/$defs/Link"},
-                            {"$ref": "#/$defs/NestedShare"},
+                            {"$ref": "#/$defs/Bookmark"},
                         ]
                     },
                 },
