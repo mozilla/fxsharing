@@ -72,8 +72,10 @@ def create_share_from_data(data, user, parent_share=None):
 # TODO remove csrf_exempt soon
 @csrf_exempt
 @require_POST
-@login_required
 def create_share(request):
+    if not request.user.is_authenticated:
+        return HttpResponse(status=401)
+
     try:
         data = json.loads(request.body)
         validate(instance=data, schema=share_schema)
@@ -86,7 +88,7 @@ def create_share(request):
 
     share = create_share_from_data(data=data, user=request.user)
     url = request.build_absolute_uri(f"/{share.id}")
-    return JsonResponse({"url": url})
+    return JsonResponse({"url": url}, status=201)
 
 
 def auth_complete(request):

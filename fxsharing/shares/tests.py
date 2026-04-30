@@ -1,7 +1,6 @@
 import json
 import uuid
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -30,7 +29,7 @@ class TestCreateShare(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert "url" in data
 
@@ -45,7 +44,7 @@ class TestCreateShare(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         share = Share.objects.get()
         assert share.user == self.user
 
@@ -76,7 +75,7 @@ class TestCreateShare(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert Share.objects.count() == 3
         assert not Share.objects.exclude(user=self.user).exists()
 
@@ -94,7 +93,7 @@ class TestCreateShare(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         share = Share.objects.get()
         api_response = self.client.get(reverse("api_share", args=[share.id]))
         data = api_response.json()
@@ -113,11 +112,7 @@ class TestCreateShareRequiresAuth(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
-        self.assertRedirects(
-            response,
-            f"{settings.LOGIN_URL}?next={reverse('create_share')}",
-            fetch_redirect_response=False,
-        )
+        assert response.status_code == 401
         assert Share.objects.count() == 0
 
 
