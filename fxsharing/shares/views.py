@@ -94,7 +94,7 @@ def create_share(request):
     except ValidationError as e:
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
 
-    # Server-calculates idempotency key from request body hash.
+    # Server-calculated idempotency key from request body hash.
     # Phase 4: include user ID in hash once FxA auth is wired up.
     idempotency_key = hashlib.sha256(request.body).hexdigest()
 

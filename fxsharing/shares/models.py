@@ -16,10 +16,13 @@ def generate_shortcode():
 
 
 class ShareStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
     ACTIVE = "active", "Active"
+    UNDER_REVIEW = "under_review", "Under Review (User Reported)"
+    FLAGGED_BY_SYSTEM = "flagged_by_system", "Flagged by System"
+    BLOCKED = "blocked", "Blocked"
     EXPIRED = "expired", "Expired"
     DELETED = "deleted", "Deleted"
-    FLAGGED = "flagged", "Flagged"
 
 
 class SafetyStatus(models.TextChoices):
@@ -37,7 +40,7 @@ class Share(models.Model):
     )
     shortcode = models.CharField(max_length=16, unique=True, default=generate_shortcode)
     status = models.CharField(
-        max_length=16,
+        max_length=32,
         choices=ShareStatus,
         default=ShareStatus.ACTIVE,
     )
