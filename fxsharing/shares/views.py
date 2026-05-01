@@ -2,10 +2,11 @@ import json
 
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
-from django.views.decorators.csrf import csrf_exempt
+from django.utils.html import escape
 from django.views.decorators.http import require_POST
 
 from jsonschema import ValidationError, validate
+from modern_csrf.decorators import csrf_protect
 
 from .models import Link, Share
 from .share_schema import share_schema
@@ -16,7 +17,9 @@ def shares(request):
     template = ""
     for share in shares:
         url = request.build_absolute_uri(f"/{share.id}")
-        template += f'<div><a href="{url}">{share.title} {share.created_at}</a></div>'
+        template += (
+            f'<div><a href="{url}">{escape(share.title)} {share.created_at}</a></div>'
+        )
 
     return HttpResponse(
         f'<div style="background-color:white;"><h1>Shares</h1>{template}</div>'
@@ -44,9 +47,9 @@ def view_share(request, share_id):
     return render(request, "shares/view_share.html")
 
 
-def create_share_from_data(data, parent_share=None):
+def create_share_from_data(data, user, parent_share=None):
     share = Share.objects.create(
-        # user_id="abc123",
+        user=user,
         title=data["title"],
         parent_share=parent_share,
     )
@@ -56,19 +59,21 @@ def create_share_from_data(data, parent_share=None):
         if obj.get("url"):
             links.append(Link(share=share, title=obj.get("title", ""), url=obj["url"]))
         elif obj.get("links"):
-            create_share_from_data(obj, parent_share=share)
+            create_share_from_data(obj, user=user, parent_share=share)
 
     Link.objects.bulk_create(links)
 
     return share
 
 
-@csrf_exempt
 @require_POST
+@csrf_protect
 def create_share(request):
+    if not request.user.is_authenticated:
+        return HttpResponse(status=401)
+
     try:
         data = json.loads(request.body)
-
         validate(instance=data, schema=share_schema)
 
     except json.JSONDecodeError:
@@ -77,8 +82,10 @@ def create_share(request):
     except ValidationError as e:
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
 
-    share = create_share_from_data(data=data)
-
+    share = create_share_from_data(data=data, user=request.user)
     url = request.build_absolute_uri(f"/{share.id}")
+    return JsonResponse({"url": url}, status=201)
 
-    return JsonResponse({"url": url})
+
+def auth_complete(request):
+    return render(request, "shares/view_auth_complete.html")

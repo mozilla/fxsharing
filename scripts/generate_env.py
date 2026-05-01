@@ -3,6 +3,7 @@
 Generate a .env file from .env.example with a fresh SECRET_KEY.
 Safe to run multiple times — skips if .env already exists.
 """
+
 import os
 import sys
 
@@ -21,7 +22,9 @@ def main():
     with open(".env.example") as f:
         contents = f.read()
 
-    contents = contents.replace("SECRET_KEY=", f"SECRET_KEY={get_random_secret_key()}", 1)
+    contents = contents.replace(
+        "SECRET_KEY=", f"SECRET_KEY={get_random_secret_key()}", 1
+    )
 
     with open(".env", "w") as f:
         f.write(contents)
