@@ -1,21 +1,15 @@
 import json
 
-from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from modern_csrf.decorators import csrf_protect
 
 from jsonschema import ValidationError, validate
 
 from .models import Link, Share
 from .share_schema import share_schema
-
-import logging
-from django.http import HttpResponseBadRequest
-from django.conf import settings
-
-logger = logging.getLogger(__name__)
 
 
 def shares(request):
@@ -69,9 +63,8 @@ def create_share_from_data(data, user, parent_share=None):
     return share
 
 
-# TODO remove csrf_exempt soon
-@csrf_exempt
 @require_POST
+@csrf_protect
 def create_share(request):
     if not request.user.is_authenticated:
         return HttpResponse(status=401)
