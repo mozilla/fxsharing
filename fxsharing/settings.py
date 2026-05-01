@@ -66,6 +66,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "modern_csrf.middleware.ModernCsrfViewMiddleware",
+    "fxsharing.shares.middleware.OAuthLoginCompleteCookieMiddleware",
 ]
 
 ROOT_URLCONF = "fxsharing.urls"

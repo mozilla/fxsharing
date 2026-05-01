@@ -1,10 +1,13 @@
 import json
 import uuid
 
+from allauth.account.signals import user_logged_in, user_logged_out
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.http import HttpResponse
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
+from fxsharing.shares.middleware import OAuthLoginCompleteCookieMiddleware
 from fxsharing.shares.models import Share
 
 User = get_user_model()
@@ -157,3 +160,39 @@ class TestDockerflowEndpoints(TestCase):
     def test_version_get(self):
         response = self.client.get("/__version__")
         assert response.status_code == 200
+
+
+class TestOAuthLoginCompleteCookie(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="alice")
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _run(self, signal=None):
+        def view(request):
+            if signal is not None:
+                signal.send(sender=User, request=request, user=self.user)
+            return HttpResponse()
+
+        middleware = OAuthLoginCompleteCookieMiddleware(view)
+        return middleware(self.factory.get("/"))
+
+    def test_sets_auth_cookie_when_login_signal_fires(self):
+        response = self._run(signal=user_logged_in)
+        cookie = response.cookies["auth"]
+        assert cookie.value == "1"
+        assert cookie["httponly"]
+        assert cookie["samesite"] == "Lax"
+        assert cookie["path"] == "/"
+
+    def test_no_auth_cookie_on_request_without_login(self):
+        response = self._run()
+        assert "auth" not in response.cookies
+
+    def test_clears_auth_cookie_when_logout_signal_fires(self):
+        response = self._run(signal=user_logged_out)
+        cookie = response.cookies["auth"]
+        assert cookie.value == ""
+        assert cookie["max-age"] == 0
