@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 
+
 class OAuthLoginCompleteCookieMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response

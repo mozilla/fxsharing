@@ -5,4 +5,4 @@ class SharesConfig(AppConfig):
     name = "fxsharing.shares"
 
     def ready(self):
-        import fxsharing.shares.signals
+        import fxsharing.shares.signals  # noqa: F401

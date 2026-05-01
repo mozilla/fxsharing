@@ -1,11 +1,12 @@
 import json
 import uuid
 
-from allauth.account.signals import user_logged_in, user_logged_out
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
+
+from allauth.account.signals import user_logged_in, user_logged_out
 
 from fxsharing.shares.middleware import OAuthLoginCompleteCookieMiddleware
 from fxsharing.shares.models import Share

@@ -10,6 +10,7 @@ dependencies = [
     "django-allauth>=65.16.1",
     "django-allauth[socialaccount]>=65.16.1",
     "django-environ>=0.11.0",
+    "django-modern-csrf>=1.0.1",
     "dockerflow>=2026.3.0",
     "gunicorn>=23.0.0",
     "jsonschema>=4.26.0",

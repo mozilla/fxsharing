@@ -1,12 +1,12 @@
 import json
 
-from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils.html import escape
 from django.views.decorators.http import require_POST
-from modern_csrf.decorators import csrf_protect
 
 from jsonschema import ValidationError, validate
+from modern_csrf.decorators import csrf_protect
 
 from .models import Link, Share
 from .share_schema import share_schema
@@ -17,11 +17,14 @@ def shares(request):
     template = ""
     for share in shares:
         url = request.build_absolute_uri(f"/{share.id}")
-        template += f'<div><a href="{url}">{share.title} {share.created_at}</a></div>'
+        template += (
+            f'<div><a href="{url}">{escape(share.title)} {share.created_at}</a></div>'
+        )
 
     return HttpResponse(
         f'<div style="background-color:white;"><h1>Shares</h1>{template}</div>'
     )
+
 
 def api_share(request, share_id):
     share = get_object_or_404(Share, id=share_id)
@@ -77,7 +80,7 @@ def create_share(request):
         return HttpResponseBadRequest("Invalid JSON in request body")
 
     except ValidationError as e:
-        return HttpResponseBadRequest(f"JSON validation error: {str(e)}")
+        return HttpResponseBadRequest(f"JSON validation error: {e.message}")
 
     share = create_share_from_data(data=data, user=request.user)
     url = request.build_absolute_uri(f"/{share.id}")
