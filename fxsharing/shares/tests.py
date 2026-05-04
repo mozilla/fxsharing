@@ -15,24 +15,31 @@ User = get_user_model()
 
 
 class TestShareModel(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="sharemodel")
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
     def test_shortcode_auto_generated(self):
-        share = Share.objects.create(title="Test")
+        share = Share.objects.create(title="Test", user=self.user)
         assert share.shortcode
         assert len(share.shortcode) == 10
 
     def test_shortcode_is_unique(self):
-        s1 = Share.objects.create(title="First")
-        s2 = Share.objects.create(title="Second")
+        s1 = Share.objects.create(title="First", user=self.user)
+        s2 = Share.objects.create(title="Second", user=self.user)
         assert s1.shortcode != s2.shortcode
 
     def test_status_defaults_to_active(self):
-        share = Share.objects.create(title="Test")
+        share = Share.objects.create(title="Test", user=self.user)
         assert share.status == ShareStatus.ACTIVE
 
     def test_idempotency_key_nullable(self):
         # Nested shares don't have an idempotency key
-        parent = Share.objects.create(title="Parent")
-        nested = Share.objects.create(title="Nested", parent_share=parent)
+        parent = Share.objects.create(title="Parent", user=self.user)
+        nested = Share.objects.create(title="Nested", user=self.user, parent_share=parent)
         assert nested.idempotency_key is None
 
     def test_expires_at_set_via_api(self):
@@ -51,8 +58,12 @@ class TestShareModel(TestCase):
 
 
 class TestLinkModel(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="linkmodel")
+
     def setUp(self):
-        self.share = Share.objects.create(title="Test Share")
+        self.share = Share.objects.create(title="Test Share", user=self.user)
 
     def test_safety_status_defaults_to_unknown(self):
         link = Link.objects.create(share=self.share, url="https://example.com")
@@ -195,7 +206,7 @@ class TestCreateShare(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
 
     def test_rejects_bookmark_folder_type(self):
         payload = {
