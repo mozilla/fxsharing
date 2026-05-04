@@ -1,52 +1,39 @@
+from unittest.mock import MagicMock, patch
+
+from django.db import IntegrityError
 from django.test import TestCase
 
-from fxsharing.users.models import Session, User
+from fxsharing.users.adapter import FxASocialAccountAdapter
+from fxsharing.users.models import User
+
+
+class TestFxASocialAccountAdapter(TestCase):
+    def test_populate_user_sets_fxa_id(self):
+        adapter = FxASocialAccountAdapter()
+        sociallogin = MagicMock()
+        sociallogin.account.uid = "a1b2c3d4e5f6789abc"
+        user = User()
+        with patch.object(
+            FxASocialAccountAdapter.__bases__[0],
+            "populate_user",
+            return_value=user,
+        ):
+            result = adapter.populate_user(None, sociallogin, {})
+        assert result.fxa_id == "a1b2c3d4e5f6789abc"
 
 
 class TestUserModel(TestCase):
     def test_creates_user(self):
-        user = User.objects.create(fxa_id="abc123")
-        assert user.fxa_id == "abc123"
+        user = User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
+        assert user.fxa_id == "a1b2c3d4e5f6789abc"
         assert user.is_banned is False
         assert user.created_at is not None
 
     def test_fxa_id_is_unique(self):
-        User.objects.create(fxa_id="abc123")
-        from django.db import IntegrityError
-
+        User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
         with self.assertRaises(IntegrityError):
-            User.objects.create(fxa_id="abc123")
+            User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
 
     def test_str(self):
-        user = User.objects.create(fxa_id="abc123")
-        assert str(user) == "abc123"
-
-
-class TestSessionModel(TestCase):
-    def setUp(self):
-        self.user = User.objects.create(fxa_id="abc123")
-
-    def test_creates_session(self):
-        session = Session.objects.create(user=self.user)
-        assert session.user == self.user
-        assert session.session_token is not None
-        assert len(session.session_token) > 0
-
-    def test_session_token_is_unique(self):
-        s1 = Session.objects.create(user=self.user)
-        s2 = Session.objects.create(user=self.user)
-        assert s1.session_token != s2.session_token
-
-    def test_expires_at_defaults_to_one_year(self):
-        session = Session.objects.create(user=self.user)
-        delta = session.expires_at - session.created_at
-        assert abs(delta.days - 365) <= 1
-
-    def test_session_deleted_when_user_deleted(self):
-        Session.objects.create(user=self.user)
-        self.user.delete()
-        assert Session.objects.count() == 0
-
-    def test_str(self):
-        session = Session.objects.create(user=self.user)
-        assert str(session) == "Session for abc123"
+        user = User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
+        assert str(user) == "a1b2c3d4e5f6789abc"

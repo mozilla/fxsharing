@@ -17,7 +17,7 @@ User = get_user_model()
 class TestShareModel(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username="sharemodel")
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6sharemodel")
 
     def setUp(self):
         self.client.force_login(self.user)
@@ -62,7 +62,7 @@ class TestShareModel(TestCase):
 class TestLinkModel(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username="linkmodel")
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6linkmodel")
 
     def setUp(self):
         self.share = Share.objects.create(title="Test Share", user=self.user)
@@ -95,7 +95,7 @@ class TestLinkModel(TestCase):
 class TestCreateShare(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username="alice")
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6alice")
 
     def setUp(self):
         self.client.force_login(self.user)
@@ -243,7 +243,7 @@ class TestCreateShareRequiresAuth(TestCase):
 class TestApiShare(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username="alice")
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6alice")
 
     def test_returns_share_json(self):
         share = Share.objects.create(title="Test Share", user=self.user)
@@ -261,7 +261,7 @@ class TestApiShare(TestCase):
 class TestViewShare(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username="alice")
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6alice")
 
     def test_returns_200(self):
         share = Share.objects.create(title="Test Share", user=self.user)
@@ -286,7 +286,7 @@ class TestDockerflowEndpoints(TestCase):
 class TestOAuthLoginCompleteCookie(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username="alice")
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6alice")
 
     def setUp(self):
         self.factory = RequestFactory()

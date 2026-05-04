@@ -1,37 +1,40 @@
-import secrets
 import uuid
-from datetime import timedelta
 
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+)
 from django.db import models
-from django.utils import timezone
 
 
-def _default_session_token():
-    return secrets.token_urlsafe(32)
+class UserManager(BaseUserManager):
+    def create_user(self, fxa_id, **extra_fields):
+        if not fxa_id:
+            raise ValueError("fxa_id is required")
+        user = self.model(fxa_id=fxa_id, **extra_fields)
+        user.set_unusable_password()
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, fxa_id, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        return self.create_user(fxa_id, **extra_fields)
 
 
-def _default_expires_at():
-    return timezone.now() + timedelta(days=365)
-
-
-class User(models.Model):
+class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    fxa_id = models.CharField(max_length=255, unique=True)
+    fxa_id = models.CharField(max_length=32, unique=True)
     is_banned = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    USERNAME_FIELD = "fxa_id"
+    REQUIRED_FIELDS = []
+
+    objects = UserManager()
 
     def __str__(self):
         return self.fxa_id
-
-
-class Session(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sessions")
-    session_token = models.CharField(
-        max_length=255, unique=True, default=_default_session_token
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(default=_default_expires_at)
-
-    def __str__(self):
-        return f"Session for {self.user.fxa_id}"
