@@ -9,9 +9,87 @@ from django.urls import reverse
 from allauth.account.signals import user_logged_in, user_logged_out
 
 from fxsharing.shares.middleware import OAuthLoginCompleteCookieMiddleware
-from fxsharing.shares.models import Share
+from fxsharing.shares.models import Link, SafetyStatus, Share, ShareStatus
 
 User = get_user_model()
+
+
+class TestShareModel(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="sharemodel")
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_shortcode_auto_generated(self):
+        share = Share.objects.create(title="Test", user=self.user)
+        assert share.shortcode
+        assert len(share.shortcode) == 10
+
+    def test_shortcode_is_unique(self):
+        s1 = Share.objects.create(title="First", user=self.user)
+        s2 = Share.objects.create(title="Second", user=self.user)
+        assert s1.shortcode != s2.shortcode
+
+    def test_status_defaults_to_active(self):
+        share = Share.objects.create(title="Test", user=self.user)
+        assert share.status == ShareStatus.ACTIVE
+
+    def test_idempotency_key_nullable(self):
+        # Nested shares don't have an idempotency key
+        parent = Share.objects.create(title="Parent", user=self.user)
+        nested = Share.objects.create(
+            title="Nested", user=self.user, parent_share=parent
+        )
+        assert nested.idempotency_key is None
+
+    def test_expires_at_set_via_api(self):
+        payload = {
+            "type": "tabs",
+            "title": "Test",
+            "links": [{"url": "https://example.com", "title": "Example"}],
+        }
+        self.client.post(
+            reverse("create_share"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        share = Share.objects.filter(parent_share__isnull=True).first()
+        assert share.expires_at is not None
+
+
+class TestLinkModel(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="linkmodel")
+
+    def setUp(self):
+        self.share = Share.objects.create(title="Test Share", user=self.user)
+
+    def test_safety_status_defaults_to_unknown(self):
+        link = Link.objects.create(share=self.share, url="https://example.com")
+        assert link.safety_status == SafetyStatus.UNKNOWN
+
+    def test_preview_fields_default_to_blank(self):
+        link = Link.objects.create(share=self.share, url="https://example.com")
+        assert link.preview_title == ""
+        assert link.preview_description == ""
+        assert link.preview_image_url == ""
+
+    def test_to_dict_includes_new_fields(self):
+        link = Link.objects.create(
+            share=self.share,
+            url="https://example.com",
+            preview_title="Example",
+            preview_description="A site",
+            preview_image_url="https://example.com/img.png",
+        )
+        d = link.to_dict()
+        assert d["safety_status"] == SafetyStatus.UNKNOWN
+        assert d["preview_title"] == "Example"
+        assert d["preview_description"] == "A site"
+        assert d["preview_image_url"] == "https://example.com/img.png"
 
 
 class TestCreateShare(TestCase):
@@ -102,6 +180,48 @@ class TestCreateShare(TestCase):
         api_response = self.client.get(reverse("api_share", args=[share.id]))
         data = api_response.json()
         assert len(data["links"]) == 2
+
+    def test_duplicate_request_returns_same_url(self):
+        payload = {
+            "type": "tabs",
+            "title": "My Links",
+            "links": [{"url": "https://example.com", "title": "Example"}],
+        }
+        body = json.dumps(payload)
+        r1 = self.client.post(
+            reverse("create_share"), data=body, content_type="application/json"
+        )
+        r2 = self.client.post(
+            reverse("create_share"), data=body, content_type="application/json"
+        )
+        assert r1.json()["url"] == r2.json()["url"]
+        assert Share.objects.filter(parent_share__isnull=True).count() == 1
+
+    def test_accepts_bookmarks_type(self):
+        payload = {
+            "type": "bookmarks",
+            "title": "My Bookmarks",
+            "links": [{"url": "https://example.com", "title": "Example"}],
+        }
+        response = self.client.post(
+            reverse("create_share"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        assert response.status_code == 201
+
+    def test_rejects_bookmark_folder_type(self):
+        payload = {
+            "type": "bookmark_folder",
+            "title": "My Bookmarks",
+            "links": [{"url": "https://example.com", "title": "Example"}],
+        }
+        response = self.client.post(
+            reverse("create_share"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
 
 
 class TestCreateShareRequiresAuth(TestCase):

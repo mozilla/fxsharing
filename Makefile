@@ -8,7 +8,7 @@ help:
 	@echo "  migrate  Apply database migrations"
 	@echo "  test     Run tests with pytest"
 	@echo "  lint     Run ruff linter and format check"
-	@echo "  format   Auto-format with ruff"
+	@echo "  format   Auto-format and fix lint issues with ruff"
 	@echo "  up       Start all services via docker compose"
 	@echo "  down     Stop all services"
 	@echo "  logs     Tail docker compose logs"
@@ -31,6 +31,7 @@ lint:
 	uv run ruff format --check fxsharing/
 
 format:
+	uv run ruff check --fix fxsharing/
 	uv run ruff format fxsharing/
 
 up:
