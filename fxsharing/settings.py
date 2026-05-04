@@ -35,7 +35,6 @@ LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/auth-complete")
 # Application definition
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -79,7 +78,10 @@ ROOT_URLCONF = "fxsharing.urls"
 # Only allow FxA login - no site login/logout pages
 SOCIALACCOUNT_ONLY = True
 ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_USER_MODEL_EMAIL_FIELD = None
+ACCOUNT_LOGIN_METHODS = set()
+ACCOUNT_SIGNUP_FIELDS = ["email"]
 SOCIALACCOUNT_ADAPTER = "fxsharing.users.adapter.FxASocialAccountAdapter"
 SOCIALACCOUNT_STORE_TOKENS = False
 SOCIALACCOUNT_PROVIDERS = {
