@@ -103,8 +103,9 @@ def create_share(request):
         url = request.build_absolute_uri(f"/{existing.id}")
         return JsonResponse({"url": url})
 
-    share = create_share_from_data(data=data, user=request.user, idempotency_key=idempotency_key)
-
+    share = create_share_from_data(
+        data=data, user=request.user, idempotency_key=idempotency_key
+    )
 
     url = request.build_absolute_uri(f"/{share.id}")
     return JsonResponse({"url": url}, status=201)

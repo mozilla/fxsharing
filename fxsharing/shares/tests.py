@@ -39,7 +39,9 @@ class TestShareModel(TestCase):
     def test_idempotency_key_nullable(self):
         # Nested shares don't have an idempotency key
         parent = Share.objects.create(title="Parent", user=self.user)
-        nested = Share.objects.create(title="Nested", user=self.user, parent_share=parent)
+        nested = Share.objects.create(
+            title="Nested", user=self.user, parent_share=parent
+        )
         assert nested.idempotency_key is None
 
     def test_expires_at_set_via_api(self):
