@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "fxsharing.users",
     "fxsharing.shares",
     "modern_csrf",
     "allauth",
@@ -48,6 +49,8 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.fxa",
 ]
+
+AUTH_USER_MODEL = "users.User"
 
 # Use the Dummy social provider for local testing
 if DEBUG:
@@ -76,6 +79,14 @@ ROOT_URLCONF = "fxsharing.urls"
 # Only allow FxA login - no site login/logout pages
 SOCIALACCOUNT_ONLY = True
 ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USER_MODEL_EMAIL_FIELD = None
+ACCOUNT_LOGIN_METHODS = set()
+SILENCED_SYSTEM_CHECKS = [
+    "account.W001"
+]  # SOCIALACCOUNT_ONLY=True; normal signup/login never used
+ACCOUNT_SIGNUP_FIELDS = ["email"]
+SOCIALACCOUNT_ADAPTER = "fxsharing.users.adapter.FxASocialAccountAdapter"
 SOCIALACCOUNT_STORE_TOKENS = False
 SOCIALACCOUNT_PROVIDERS = {
     "fxa": {
