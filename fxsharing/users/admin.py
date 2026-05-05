@@ -18,9 +18,7 @@ class UserAdmin(BaseUserAdmin):
         ("Permissions", {"fields": ("groups", "user_permissions")}),
         ("Dates", {"fields": ("last_login", "created_at")}),
     )
-    add_fieldsets = (
-        (None, {"fields": ("fxa_id",)}),
-    )
+    add_fieldsets = ((None, {"fields": ("fxa_id",)}),)
 
     # No password fields — users authenticate via FxA
     filter_horizontal = ("groups", "user_permissions")
