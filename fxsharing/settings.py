@@ -35,6 +35,7 @@ LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/auth-complete")
 # Application definition
 
 INSTALLED_APPS = [
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -81,6 +82,7 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_USER_MODEL_EMAIL_FIELD = None
 ACCOUNT_LOGIN_METHODS = set()
+SILENCED_SYSTEM_CHECKS = ["account.W001"]  # SOCIALACCOUNT_ONLY=True; normal signup/login never used
 ACCOUNT_SIGNUP_FIELDS = ["email"]
 SOCIALACCOUNT_ADAPTER = "fxsharing.users.adapter.FxASocialAccountAdapter"
 SOCIALACCOUNT_STORE_TOKENS = False
