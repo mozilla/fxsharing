@@ -13,6 +13,7 @@ from modern_csrf.decorators import csrf_protect
 
 from .models import Link, Share
 from .share_schema import share_schema
+from .tasks import check_link_safety, fetch_link_preview
 
 
 def shares(request):
@@ -73,7 +74,10 @@ def create_share_from_data(data, user, parent_share=None, idempotency_key=None):
         elif obj.get("links"):
             create_share_from_data(obj, user=user, parent_share=share)
 
-    Link.objects.bulk_create(links)
+    created_links = Link.objects.bulk_create(links)
+    for link in created_links:
+        fetch_link_preview.delay(str(link.id))
+        check_link_safety.delay(str(link.id))
 
     return share
 

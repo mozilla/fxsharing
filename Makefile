@@ -9,6 +9,7 @@ help:
 	@echo "  test     Run tests with pytest"
 	@echo "  lint     Run ruff linter and format check"
 	@echo "  format   Auto-format and fix lint issues with ruff"
+	@echo "  worker   Start the Celery worker (local dev)"
 	@echo "  up       Start all services via docker compose"
 	@echo "  down     Stop all services"
 	@echo "  logs     Tail docker compose logs"
@@ -33,6 +34,9 @@ lint:
 format:
 	uv run ruff check --fix fxsharing/
 	uv run ruff format fxsharing/
+
+worker:
+	uv run celery -A fxsharing worker -l info
 
 up:
 	docker compose up -d
