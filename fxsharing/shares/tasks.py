@@ -45,5 +45,5 @@ def fetch_link_preview(link_id):
 
 @shared_task
 def check_link_safety(link_id):
-    # Stub: Web Risk API integration (Phase 8)
+    # Stub: Web Risk API integration would go here
     pass
