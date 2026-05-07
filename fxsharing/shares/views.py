@@ -76,8 +76,8 @@ def create_share_from_data(data, user, parent_share=None, idempotency_key=None):
 
     created_links = Link.objects.bulk_create(links)
     for link in created_links:
-        fetch_link_preview.delay(str(link.id))
-        check_link_safety.delay(str(link.id))
+        fetch_link_preview.delay_on_commit(str(link.id))
+        check_link_safety.delay_on_commit(str(link.id))
 
     return share
 
