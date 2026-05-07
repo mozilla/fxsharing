@@ -2,6 +2,7 @@ import hashlib
 import json
 from datetime import timedelta
 
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -54,6 +55,7 @@ def view_share(request, share_id):
 SHARE_EXPIRY_DAYS = 7
 
 
+@transaction.atomic
 def create_share_from_data(data, user, parent_share=None, idempotency_key=None):
     share = Share.objects.create(
         user=user,
