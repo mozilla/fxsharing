@@ -1,37 +1,39 @@
 # fxsharing
 
-Prototype for Firefox content sharing — lets users create and share collections of links. Built with Django 6, Python 3.13, managed with [uv](https://docs.astral.sh/uv/).
+Prototype for Firefox content sharing — lets users create and share collections of links. Built with Django 6, Python 3.14, managed with [uv](https://docs.astral.sh/uv/).
 
 ## Setup
 
-Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/). Everything else (Python, Postgres) runs inside Docker.
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/). Everything else (Python, Postgres, Redis) runs inside Docker.
 
 ```bash
 make setup   # generate .env with a random SECRET_KEY
-make up      # build and start app and Postgres
+make up      # build and start app, Postgres, Redis, and Celery worker
 ```
 
 The app will be available at `http://localhost:8000`. Migrations run automatically on `make up`.
 
 ### Without Docker
 
-Requires [Python 3.13+](https://www.python.org/), [uv](https://docs.astral.sh/uv/getting-started/installation/), and a running [PostgreSQL](https://www.postgresql.org/download/) instance.
+Requires [Python 3.14+](https://www.python.org/), [uv](https://docs.astral.sh/uv/getting-started/installation/), a running [PostgreSQL](https://www.postgresql.org/download/) instance, and a running [Redis](https://redis.io/docs/getting-started/) instance.
 
 ```bash
 make setup   # install dependencies and generate .env
 ```
 
-Set `DATABASE_URL` in `.env` to your local Postgres connection string, e.g.:
+Set `DATABASE_URL` and `REDIS_URL` in `.env` to your local connection strings, e.g.:
 
 ```
 DATABASE_URL=postgres://localhost/fxsharing
+REDIS_URL=redis://localhost:6379/0
 ```
 
-Then:
+Then run each of these in separate terminals:
 
 ```bash
-make migrate  # apply migrations
+make migrate  # apply migrations (first time only)
 make run      # start the dev server
+make worker   # start the Celery worker
 ```
 
 ## API
@@ -61,4 +63,4 @@ This is an early prototype. Known gaps before production:
 
 - No authentication (FxA integration planned)
 - No rate limiting
-- OpenGraph scraping is synchronous — will move to Celery workers
+- No content safety review (Cinder integration planned)
