@@ -8,10 +8,18 @@ Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/). Ever
 
 ```bash
 make setup   # generate .env with a random SECRET_KEY
-make up      # build and start app, Postgres, Redis, and Celery worker
+make up      # build and start app, Postgres, Redis, Celery worker, and Flower
 ```
 
 The app will be available at `http://localhost:8000`. Migrations run automatically on `make up`.
+
+To monitor Celery tasks, open [Flower](http://localhost:5555) — a real-time dashboard showing worker status, task history, and failure tracebacks.
+
+To tail worker logs directly:
+
+```bash
+docker compose logs -f worker
+```
 
 ### Without Docker
 
@@ -34,6 +42,7 @@ Then run each of these in separate terminals:
 make migrate  # apply migrations (first time only)
 make run      # start the dev server
 make worker   # start the Celery worker
+make flower   # start the Flower task monitor (http://localhost:5555)
 ```
 
 ## API

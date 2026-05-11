@@ -10,6 +10,7 @@ help:
 	@echo "  lint     Run ruff linter and format check"
 	@echo "  format   Auto-format and fix lint issues with ruff"
 	@echo "  worker   Start the Celery worker (local dev)"
+	@echo "  flower   Start the Flower task monitor (local dev, http://localhost:5555)"
 	@echo "  up       Start all services via docker compose"
 	@echo "  down     Stop all services"
 	@echo "  logs     Tail docker compose logs"
@@ -37,6 +38,9 @@ format:
 
 worker:
 	uv run celery -A fxsharing worker -l info
+
+flower:
+	uv run celery -A fxsharing flower --port=5555
 
 up:
 	docker compose up -d
