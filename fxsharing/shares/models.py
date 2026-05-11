@@ -5,9 +5,6 @@ import uuid
 from django.conf import settings
 from django.db import models
 
-import requests
-from bs4 import BeautifulSoup
-
 SHORTCODE_CHARS = string.ascii_letters + string.digits
 
 
@@ -100,35 +97,6 @@ class Link(models.Model):
     def __str__(self):
         return self.title or self.url
 
-    def get_opengraph_data(self):
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (platform; rv:gecko-version)"
-                " Gecko/gecko-trail Firefox/firefox-version"
-            )
-        }
-
-        try:
-            r = requests.get(self.url, headers=headers, timeout=10)
-            r.raise_for_status()
-
-            soup = BeautifulSoup(r.text, "html.parser")
-            og_tags = {}
-
-            for meta_tag in soup.find_all(
-                "meta", property=lambda p: p and p.startswith("og:")
-            ):
-                prop = meta_tag.get("property")
-                content = meta_tag.get("content")
-                if prop and content:
-                    og_tags[prop.replace("og:", "")] = content
-
-            return og_tags
-
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching URL: {e}")
-            return None
-
     def to_dict(self):
         return dict(
             id=str(self.id),
@@ -139,5 +107,4 @@ class Link(models.Model):
             preview_title=self.preview_title,
             preview_description=self.preview_description,
             preview_image_url=self.preview_image_url,
-            opengraph=self.get_opengraph_data(),
         )

@@ -134,6 +134,49 @@ DATABASES = {
     "default": env.db("DATABASE_URL", default="postgres://localhost/fxsharing")
 }
 
+REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_WORKER_SEND_TASK_EVENTS = True
+CELERY_TASK_TRACK_STARTED = True
+
+LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+LOG_FORMAT = env("LOG_FORMAT", default="mozlog")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": True,
+    "formatters": {
+        "mozlog": {
+            "()": "dockerflow.logging.JsonLogFormatter",
+            "logger_name": "fxsharing",
+        },
+        "text": {"format": "%(levelname)s %(asctime)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "console": {
+            "level": LOG_LEVEL,
+            "class": "logging.StreamHandler",
+            "formatter": LOG_FORMAT,
+        }
+    },
+    "loggers": {
+        "django.db": {
+            "handlers": ["console"] if DEBUG else [],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+    "root": {"handlers": ["console"], "level": "DEBUG"},
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
