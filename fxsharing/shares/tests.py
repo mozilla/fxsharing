@@ -268,6 +268,44 @@ class TestViewShare(TestCase):
         assert response.status_code == 200
 
 
+class TestReportShare(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6alice")
+
+    def test_report_sets_status_under_review(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        response = self.client.post(
+            reverse("report_share"),
+            data=json.dumps({"shortcode": share.shortcode, "reason": "spam"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 200
+        share.refresh_from_db()
+        assert share.status == "under_review"
+
+    def test_report_returns_404_for_unknown_shortcode(self):
+        response = self.client.post(
+            reverse("report_share"),
+            data=json.dumps({"shortcode": "doesnotexist", "reason": "spam"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 404
+
+    def test_report_rejects_invalid_reason(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        response = self.client.post(
+            reverse("report_share"),
+            data=json.dumps({"shortcode": share.shortcode, "reason": "notareason"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+    def test_report_requires_post(self):
+        response = self.client.get(reverse("report_share"))
+        assert response.status_code == 405
+
+
 class TestDockerflowEndpoints(TestCase):
     def test_lbheartbeat_get(self):
         response = self.client.get("/__lbheartbeat__")

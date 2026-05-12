@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 
-from .models import Link, Share
+from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
 from .tasks import check_link_safety, fetch_link_preview
 
@@ -105,6 +105,34 @@ def create_share(request):
 
     url = request.build_absolute_uri(f"/s/{share.shortcode}")
     return JsonResponse({"url": url}, status=201)
+
+
+VALID_REPORT_REASONS = {"copyright", "harmful", "spam", "other"}
+
+
+@require_POST
+@csrf_protect
+def report_share(request):
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest("Invalid JSON in request body")
+
+    shortcode = data.get("shortcode")
+    reason = data.get("reason")
+
+    if not shortcode or not reason:
+        return HttpResponseBadRequest("Missing required fields: shortcode, reason")
+
+    if reason not in VALID_REPORT_REASONS:
+        return HttpResponseBadRequest(f"Invalid reason: {reason}")
+
+    share = get_object_or_404(Share, shortcode=shortcode)
+    Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
+        status=ShareStatus.UNDER_REVIEW
+    )
+
+    return JsonResponse({"status": "reported"})
 
 
 def auth_complete(request):
