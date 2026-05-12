@@ -2,6 +2,8 @@ import { MozLitElement } from "../dependencies/lit-utils.mjs";
 import { html, ifDefined, when, css } from "../dependencies/lit.all.mjs";
 import "./moz-card/moz-card.mjs";
 import "./moz-button/moz-button.mjs";
+import "./moz-radio-group/moz-radio-group.mjs";
+import "./moz-message-bar/moz-message-bar.mjs";
 
 class MozLink extends MozLitElement {
   static properties = { link: { type: Object } };
@@ -80,7 +82,10 @@ class MozLink extends MozLitElement {
 customElements.define("moz-link", MozLink);
 
 class MozShare extends MozLitElement {
-  static properties = { share: { type: Object } };
+  static properties = {
+    share: { type: Object },
+    reportSubmitted: { type: Boolean, state: true },
+  };
   static styles = css`
     .share {
       display: flex;
@@ -117,9 +122,37 @@ class MozShare extends MozLitElement {
         grid-template-columns: repeat(2, 1fr);
       }
     }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-small);
+    }
+
+    #report-dialog {
+      border: none;
+      border-radius: var(--border-radius-medium);
+      padding: var(--space-xxlarge);
+      max-width: 400px;
+    }
+
+    #report-dialog::backdrop {
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .report-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-small);
+      margin-top: var(--space-large);
+    }
   `;
 
-  static queries = { copyButton: "#copy-button" };
+  static queries = {
+    copyButton: "#copy-button",
+    reportDialog: "#report-dialog",
+    reportForm: "#report-form",
+  };
 
   get dateFormatted() {
     if (!this.share?.created_at) {
@@ -164,6 +197,70 @@ class MozShare extends MozLitElement {
     >`;
   }
 
+  openReportDialog() {
+    this.reportDialog.showModal();
+  }
+
+  cancelReport() {
+    this.reportDialog.close();
+  }
+
+  submitReport() {
+    this.reportForm.reset();
+    this.reportDialog.close();
+    this.reportSubmitted = true;
+  }
+
+  reportConfirmationTemplate() {
+    if (!this.reportSubmitted) {
+      return null;
+    }
+    return html`<moz-message-bar
+      type="success"
+      message="Your report has been submitted"
+      dismissable
+      @message-bar:user-dismissed=${() => (this.reportSubmitted = false)}
+    ></moz-message-bar>`;
+  }
+
+  reportButtonTemplate() {
+    return html`<moz-button id="report-button" @click=${this.openReportDialog}
+      >Report unsafe page</moz-button
+    >`;
+  }
+
+  reportDialogTemplate() {
+    return html`<dialog id="report-dialog">
+      <form id="report-form">
+        <moz-radio-group
+          label="Why are you reporting this page?"
+          name="reason"
+          value="copyright"
+        >
+          <moz-radio
+            value="copyright"
+            label="Contains copyright protected content"
+          ></moz-radio>
+          <moz-radio
+            value="harmful"
+            label="Contains sexual, violent, or other harmful content"
+          ></moz-radio>
+          <moz-radio
+            value="spam"
+            label="Contains spam or malware"
+          ></moz-radio>
+          <moz-radio value="other" label="Other"></moz-radio>
+        </moz-radio-group>
+        <div class="report-actions">
+          <moz-button @click=${this.cancelReport}>Cancel</moz-button>
+          <moz-button type="primary" @click=${this.submitReport}
+            >Submit</moz-button
+          >
+        </div>
+      </form>
+    </dialog>`;
+  }
+
   render() {
     if (!this.share) {
       return null;
@@ -183,7 +280,12 @@ class MozShare extends MozLitElement {
           >
           to create your own shared links.
         </p>
-        ${this.copyButtonTemplate()}
+        <div class="actions">
+          ${this.copyButtonTemplate()}
+          ${this.reportButtonTemplate()}
+        </div>
+        ${this.reportConfirmationTemplate()}
+        ${this.reportDialogTemplate()}
       </div>
       <moz-card
         ><div class="container">
