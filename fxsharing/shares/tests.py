@@ -177,7 +177,7 @@ class TestCreateShare(TestCase):
         )
         assert response.status_code == 201
         share = Share.objects.get()
-        api_response = self.client.get(reverse("api_share", args=[share.id]))
+        api_response = self.client.get(reverse("api_share", args=[share.shortcode]))
         data = api_response.json()
         assert len(data["links"]) == 2
 
@@ -247,14 +247,14 @@ class TestApiShare(TestCase):
 
     def test_returns_share_json(self):
         share = Share.objects.create(title="Test Share", user=self.user)
-        response = self.client.get(reverse("api_share", args=[share.id]))
+        response = self.client.get(reverse("api_share", args=[share.shortcode]))
         assert response.status_code == 200
         data = response.json()
         assert data["title"] == "Test Share"
         assert data["id"] == str(share.id)
 
-    def test_returns_404_for_unknown_id(self):
-        response = self.client.get(reverse("api_share", args=[uuid.uuid4()]))
+    def test_returns_404_for_unknown_shortcode(self):
+        response = self.client.get(reverse("api_share", args=["doesnotexist"]))
         assert response.status_code == 404
 
 
@@ -265,7 +265,7 @@ class TestViewShare(TestCase):
 
     def test_returns_200(self):
         share = Share.objects.create(title="Test Share", user=self.user)
-        response = self.client.get(reverse("view_share", args=[share.id]))
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
         assert response.status_code == 200
 
 
