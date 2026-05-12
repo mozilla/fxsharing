@@ -37,6 +37,7 @@ def api_share(request, shortcode):
 
 
 def view_share(request, shortcode):
+    # 404 if shortcode unknown; share data is fetched client-side by moz-share.mjs
     get_object_or_404(Share, shortcode=shortcode)
     return render(request, "shares/view_share.html")
 
