@@ -205,10 +205,7 @@ class MozShare extends MozLitElement {
     this.reportDialog.close();
   }
 
-  submitReport(event) {
-    event.preventDefault();
-    const reason = new FormData(this.reportForm).get("reason");
-    console.log("Reported page, reason:", reason);
+  submitReport() {
     this.reportForm.reset();
     this.reportDialog.close();
     this.reportSubmitted = true;
@@ -234,7 +231,7 @@ class MozShare extends MozLitElement {
 
   reportDialogTemplate() {
     return html`<dialog id="report-dialog">
-      <form id="report-form" @submit=${this.submitReport}>
+      <form id="report-form">
         <moz-radio-group
           label="Why are you reporting this page?"
           name="reason"
@@ -284,9 +281,11 @@ class MozShare extends MozLitElement {
           to create your own shared links.
         </p>
         <div class="actions">
-          ${this.copyButtonTemplate()} ${this.reportButtonTemplate()}
+          ${this.copyButtonTemplate()}
+          ${this.reportButtonTemplate()}
         </div>
-        ${this.reportConfirmationTemplate()} ${this.reportDialogTemplate()}
+        ${this.reportConfirmationTemplate()}
+        ${this.reportDialogTemplate()}
       </div>
       <moz-card
         ><div class="container">
