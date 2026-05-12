@@ -21,7 +21,7 @@ def shares(request):
     shares = Share.objects.filter(parent_share__isnull=True)
     template = ""
     for share in shares:
-        url = request.build_absolute_uri(f"/{share.shortcode}")
+        url = request.build_absolute_uri(f"/s/{share.shortcode}")
         template += (
             f'<div><a href="{url}">{escape(share.title)} {share.created_at}</a></div>'
         )
@@ -96,14 +96,14 @@ def create_share(request):
 
     existing = Share.objects.filter(idempotency_key=idempotency_key).first()
     if existing:
-        url = request.build_absolute_uri(f"/{existing.shortcode}")
+        url = request.build_absolute_uri(f"/s/{existing.shortcode}")
         return JsonResponse({"url": url})
 
     share = create_share_from_data(
         data=data, user=request.user, idempotency_key=idempotency_key
     )
 
-    url = request.build_absolute_uri(f"/{share.shortcode}")
+    url = request.build_absolute_uri(f"/s/{share.shortcode}")
     return JsonResponse({"url": url}, status=201)
 
 
