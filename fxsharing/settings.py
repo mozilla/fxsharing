@@ -150,7 +150,7 @@ LOGGING = {
     "disable_existing_loggers": True,
     "formatters": {
         "mozlog": {
-            "()": "dockerflow.logging.JsonLogFormatter",
+            "()": "dockerflow.logging.MozlogFormatter",
             "logger_name": "fxsharing",
         },
         "text": {"format": "%(levelname)s %(asctime)s %(name)s %(message)s"},

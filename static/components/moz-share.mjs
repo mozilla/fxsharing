@@ -142,7 +142,7 @@ class MozShare extends MozLitElement {
   }
 
   async init() {
-    const response = await fetch("/api" + location.pathname);
+    const response = await fetch("/api/v1/share" + location.pathname);
     const share = await response.json();
     this.share = share;
   }
