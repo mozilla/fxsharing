@@ -170,10 +170,10 @@ class MozShare extends MozLitElement {
     });
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-
-    this.init();
+  updated(changedProperties) {
+    if (changedProperties.has("shortcode") && this.shortcode) {
+      this.init();
+    }
   }
 
   async init() {

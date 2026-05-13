@@ -302,7 +302,6 @@ class TestReportShare(TestCase):
         assert response.status_code == 400
 
 
-
 class TestDockerflowEndpoints(TestCase):
     def test_lbheartbeat_get(self):
         response = self.client.get("/__lbheartbeat__")
