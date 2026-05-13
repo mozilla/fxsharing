@@ -112,22 +112,22 @@ VALID_REPORT_REASONS = {"copyright", "harmful", "spam", "other"}
 
 @require_POST
 @csrf_protect
-def report_share(request):
+def report_share(request, shortcode):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return HttpResponseBadRequest("Invalid JSON in request body")
 
-    shortcode = data.get("shortcode")
     reason = data.get("reason")
 
-    if not shortcode or not reason:
-        return HttpResponseBadRequest("Missing required fields: shortcode, reason")
+    if not reason:
+        return HttpResponseBadRequest("Missing required field: reason")
 
     if reason not in VALID_REPORT_REASONS:
         return HttpResponseBadRequest(f"Invalid reason: {reason}")
 
     share = get_object_or_404(Share, shortcode=shortcode)
+    # Only transition ACTIVE shares
     Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
         status=ShareStatus.UNDER_REVIEW
     )
