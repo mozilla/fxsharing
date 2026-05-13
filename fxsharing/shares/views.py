@@ -21,7 +21,7 @@ def shares(request):
     shares = Share.objects.filter(parent_share__isnull=True)
     template = ""
     for share in shares:
-        url = request.build_absolute_uri(f"/s/{share.shortcode}")
+        url = request.build_absolute_uri(f"/{share.shortcode}")
         template += (
             f'<div><a href="{url}">{escape(share.title)} {share.created_at}</a></div>'
         )
@@ -39,7 +39,7 @@ def api_share(request, shortcode):
 def view_share(request, shortcode):
     # 404 if shortcode unknown; share data is fetched client-side by moz-share.mjs
     get_object_or_404(Share, shortcode=shortcode)
-    return render(request, "shares/view_share.html")
+    return render(request, "shares/view_share.html", {"shortcode": shortcode})
 
 
 SHARE_EXPIRY_DAYS = 7
@@ -96,14 +96,14 @@ def create_share(request):
 
     existing = Share.objects.filter(idempotency_key=idempotency_key).first()
     if existing:
-        url = request.build_absolute_uri(f"/s/{existing.shortcode}")
+        url = request.build_absolute_uri(f"/{existing.shortcode}")
         return JsonResponse({"url": url})
 
     share = create_share_from_data(
         data=data, user=request.user, idempotency_key=idempotency_key
     )
 
-    url = request.build_absolute_uri(f"/s/{share.shortcode}")
+    url = request.build_absolute_uri(f"/{share.shortcode}")
     return JsonResponse({"url": url}, status=201)
 
 

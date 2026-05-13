@@ -83,6 +83,7 @@ customElements.define("moz-link", MozLink);
 
 class MozShare extends MozLitElement {
   static properties = {
+    shortcode: { type: String },
     share: { type: Object },
     reportSubmitted: { type: Boolean, state: true },
     reportError: { type: Boolean, state: true },
@@ -177,7 +178,7 @@ class MozShare extends MozLitElement {
 
   async init() {
     try {
-      const response = await fetch("/api/v1/share" + window.location.pathname);
+      const response = await fetch(`/api/v1/share/${this.shortcode}`);
       if (!response.ok) {
         throw new Error(`Failed to load share: ${response.status}`);
       }
@@ -214,13 +215,12 @@ class MozShare extends MozLitElement {
 
   async submitReport() {
     const reason = this.reportForm.querySelector("moz-radio-group").value;
-    const shortcode = window.location.pathname.split("/").pop();
 
     this.reportForm.reset();
     this.reportDialog.close();
 
     try {
-      const response = await fetch(`/api/v1/report/${shortcode}`, {
+      const response = await fetch(`/api/v1/report/${this.shortcode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
