@@ -52,9 +52,11 @@ The `/__lbheartbeat__`, `/__heartbeat__`, and `/__version__` endpoints are provi
 - `GET /__lbheartbeat__` — load balancer health check
 - `GET /__heartbeat__` — application health check
 - `GET /__version__` — deployed version info
-- `POST /create_share` — create a share (JSON body, see `share_schema.py` for schema)
-- `GET /<uuid>` — view share page
-- `GET /api/<uuid>` — share data as JSON
+- `POST /api/v1/create` — create a share (requires authentication; JSON body, see `share_schema.py` for schema)
+- `GET /s/<shortcode>` — view share page
+- `GET /api/v1/share/<shortcode>` — share data as JSON
+
+To test authenticated endpoints locally, log in first via the dummy FxA provider at `http://localhost:8000/accounts/dummy/login/`.
 
 ## Development
 
@@ -70,6 +72,5 @@ Tests use [pytest](https://docs.pytest.org/) with [pytest-django](https://pytest
 
 This is an early prototype. Known gaps before production:
 
-- No authentication (FxA integration planned)
 - No rate limiting
 - No content safety review (Cinder integration planned)
