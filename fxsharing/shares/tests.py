@@ -1,8 +1,10 @@
 import json
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from allauth.account.signals import user_logged_in, user_logged_out
@@ -268,10 +270,21 @@ class TestViewShare(TestCase):
         assert response.status_code == 200
 
 
+@override_settings(
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "report-tests",
+        }
+    },
+)
 class TestReportShare(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6alice")
+
+    def setUp(self):
+        cache.clear()
 
     def test_report_sets_status_under_review(self):
         share = Share.objects.create(title="Test Share", user=self.user)
@@ -300,6 +313,67 @@ class TestReportShare(TestCase):
             content_type="application/json",
         )
         assert response.status_code == 400
+
+    def test_report_schedules_process_report_task(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        Link.objects.create(share=share, url="https://example.com", title="ex")
+        Link.objects.create(share=share, url="https://mozilla.org", title="moz")
+
+        with patch(
+            "fxsharing.shares.views.process_report", autospec=True
+        ) as mock_task:
+            response = self.client.post(
+                reverse("report_share", args=[share.shortcode]),
+                data=json.dumps({"reason": "spam"}),
+                content_type="application/json",
+            )
+        assert response.status_code == 200
+        mock_task.delay.assert_called_once()
+        payload = mock_task.delay.call_args.args[0]
+        assert payload["shortcode"] == share.shortcode
+        assert payload["share_id"] == str(share.id)
+        assert payload["share_title"] == "Test Share"
+        assert payload["reason"] == "spam"
+        assert set(payload["urls"]) == {"https://example.com", "https://mozilla.org"}
+        assert "reporter_ip" in payload
+        assert "reported_at" in payload
+
+    @override_settings(REPORT_RATE_LIMIT_PER_HOUR=2)
+    def test_report_throttled_after_limit(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        url = reverse("report_share", args=[share.shortcode])
+        body = json.dumps({"reason": "spam"})
+        ct = "application/json"
+        assert self.client.post(url, data=body, content_type=ct).status_code == 200
+        assert self.client.post(url, data=body, content_type=ct).status_code == 200
+        assert self.client.post(url, data=body, content_type=ct).status_code == 429
+
+    @override_settings(REPORT_RATE_LIMIT_PER_HOUR=1)
+    def test_report_throttle_is_per_ip(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        url = reverse("report_share", args=[share.shortcode])
+        body = json.dumps({"reason": "spam"})
+        ct = "application/json"
+        r1 = self.client.post(url, data=body, content_type=ct, REMOTE_ADDR="1.1.1.1")
+        r2 = self.client.post(url, data=body, content_type=ct, REMOTE_ADDR="1.1.1.1")
+        r3 = self.client.post(url, data=body, content_type=ct, REMOTE_ADDR="2.2.2.2")
+        assert r1.status_code == 200
+        assert r2.status_code == 429
+        assert r3.status_code == 200
+
+    @override_settings(REPORT_RATE_LIMIT_PER_HOUR=1)
+    def test_report_throttle_does_not_schedule_task(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        url = reverse("report_share", args=[share.shortcode])
+        body = json.dumps({"reason": "spam"})
+        ct = "application/json"
+        self.client.post(url, data=body, content_type=ct)
+        with patch(
+            "fxsharing.shares.views.process_report", autospec=True
+        ) as mock_task:
+            response = self.client.post(url, data=body, content_type=ct)
+        assert response.status_code == 429
+        mock_task.delay.assert_not_called()
 
 
 class TestDockerflowEndpoints(TestCase):

@@ -87,6 +87,7 @@ class MozShare extends MozLitElement {
     share: { type: Object },
     reportSubmitted: { type: Boolean, state: true },
     reportError: { type: Boolean, state: true },
+    reportThrottled: { type: Boolean, state: true },
   };
   static styles = css`
     .share {
@@ -225,6 +226,10 @@ class MozShare extends MozLitElement {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
       });
+      if (response.status === 429) {
+        this.reportThrottled = true;
+        return;
+      }
       if (!response.ok) {
         throw new Error(`Report failed: ${response.status}`);
       }
@@ -242,6 +247,14 @@ class MozShare extends MozLitElement {
         message="Your report has been submitted"
         dismissable
         @message-bar:user-dismissed=${() => (this.reportSubmitted = false)}
+      ></moz-message-bar>`;
+    }
+    if (this.reportThrottled) {
+      return html`<moz-message-bar
+        type="warning"
+        message="Too many reports. Try later."
+        dismissable
+        @message-bar:user-dismissed=${() => (this.reportThrottled = false)}
       ></moz-message-bar>`;
     }
     if (this.reportError) {

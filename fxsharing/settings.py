@@ -142,6 +142,15 @@ CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_TASK_TRACK_STARTED = True
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": env("CACHE_URL", default=REDIS_URL),
+    }
+}
+
+REPORT_RATE_LIMIT_PER_HOUR = env.int("REPORT_RATE_LIMIT_PER_HOUR", default=10)
+
 LOG_LEVEL = env("LOG_LEVEL", default="INFO")
 LOG_FORMAT = env("LOG_FORMAT", default="mozlog")
 

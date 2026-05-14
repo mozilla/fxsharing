@@ -59,3 +59,14 @@ def fetch_link_preview(link_id):
 def check_link_safety(link_id):
     # Stub: Web Risk API integration would go here
     pass
+
+
+@shared_task
+def process_report(payload):
+    logger.info(
+        "report received shortcode=%s reason=%s ip=%s urls=%d",
+        payload.get("shortcode"),
+        payload.get("reason"),
+        payload.get("reporter_ip"),
+        len(payload.get("urls", [])),
+    )

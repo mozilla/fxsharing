@@ -1,7 +1,10 @@
 import hashlib
 import json
+import time
 from datetime import timedelta
 
+from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -14,7 +17,7 @@ from modern_csrf.decorators import csrf_protect
 
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
-from .tasks import check_link_safety, fetch_link_preview
+from .tasks import check_link_safety, fetch_link_preview, process_report
 
 
 def shares(request):
@@ -108,6 +111,46 @@ def create_share(request):
 
 
 VALID_REPORT_REASONS = {"copyright", "harmful", "spam", "other"}
+REPORT_THROTTLE_WINDOW_SECONDS = 3600
+
+
+def _client_ip(request):
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "")
+
+
+def _report_rate_limited(ip):
+    # Approximated sliding window across two adjacent fixed buckets.
+    # Weight the previous bucket by how much of it still falls inside the
+    # trailing window; add the current bucket's count in full.
+    limit = settings.REPORT_RATE_LIMIT_PER_HOUR
+    window = REPORT_THROTTLE_WINDOW_SECONDS
+    now = time.time()
+    current_bucket = int(now // window)
+    elapsed = now - current_bucket * window
+    prev_weight = (window - elapsed) / window
+
+    key_current = f"report_throttle:{ip}:{current_bucket}"
+    key_previous = f"report_throttle:{ip}:{current_bucket - 1}"
+
+    prev_count = cache.get(key_previous, 0)
+    curr_count = cache.get(key_current, 0)
+    estimated = prev_count * prev_weight + curr_count
+    if estimated >= limit:
+        return True
+
+    if not cache.add(key_current, 1, timeout=2 * window):
+        cache.incr(key_current)
+    return False
+
+
+def _collect_urls(share):
+    urls = list(share.links.values_list("url", flat=True))
+    for nested in share.nested_shares.all():
+        urls.extend(_collect_urls(nested))
+    return urls
 
 
 @require_POST
@@ -126,10 +169,26 @@ def report_share(request, shortcode):
     if reason not in VALID_REPORT_REASONS:
         return HttpResponseBadRequest(f"Invalid reason: {reason}")
 
+    ip = _client_ip(request)
+    if _report_rate_limited(ip):
+        return JsonResponse({"error": "rate_limited"}, status=429)
+
     share = get_object_or_404(Share, shortcode=shortcode)
     # Only transition ACTIVE shares
     Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
         status=ShareStatus.UNDER_REVIEW
+    )
+
+    process_report.delay(
+        {
+            "shortcode": shortcode,
+            "share_id": str(share.id),
+            "share_title": share.title,
+            "urls": _collect_urls(share),
+            "reason": reason,
+            "reporter_ip": ip,
+            "reported_at": timezone.now().isoformat(),
+        }
     )
 
     return JsonResponse({"status": "reported"})
