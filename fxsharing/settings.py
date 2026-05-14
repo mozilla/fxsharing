@@ -96,7 +96,6 @@ SOCIALACCOUNT_PROVIDERS = {
             "secret": env("FXA_CLIENT_SECRET", default=""),
         },
         "SCOPE": ["profile"],
-        "OAUTH_PKCE_ENABLED": True,
         "OAUTH_ENDPOINT": env(
             "FXA_OAUTH_HOST", default="https://oauth.stage.mozaws.net/v1"
         ),
