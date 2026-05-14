@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import mimetypes
 from pathlib import Path
 
 import environ
@@ -30,6 +31,11 @@ DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/auth-complete")
+
+# TODO: handle static files correctly (bug 2039735)
+mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("text/javascript", ".js", True)
+mimetypes.add_type("text/javascript", ".mjs", True)
 
 
 # Application definition
