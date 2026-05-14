@@ -37,8 +37,8 @@ RUN python manage.py collectstatic --noinput
 # Stage 3: Runtime image
 FROM python:3.13-slim-bookworm AS server
 
-ARG USER_ID=1000
-ARG GROUP_ID=1000
+ARG USER_ID=10001
+ARG GROUP_ID=10001
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
