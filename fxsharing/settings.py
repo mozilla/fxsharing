@@ -62,6 +62,7 @@ MIDDLEWARE = [
     # Must be first — intercepts /__lbheartbeat__, /__heartbeat__, /__version__
     "dockerflow.django.middleware.DockerflowMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -95,6 +96,7 @@ SOCIALACCOUNT_PROVIDERS = {
             "secret": env("FXA_CLIENT_SECRET", default=""),
         },
         "SCOPE": ["profile"],
+        "OAUTH_PKCE_ENABLED": True,
         "OAUTH_ENDPOINT": env(
             "FXA_OAUTH_HOST", default="https://oauth.stage.mozaws.net/v1"
         ),
