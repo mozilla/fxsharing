@@ -319,9 +319,7 @@ class TestReportShare(TestCase):
         Link.objects.create(share=share, url="https://example.com", title="ex")
         Link.objects.create(share=share, url="https://mozilla.org", title="moz")
 
-        with patch(
-            "fxsharing.shares.views.process_report", autospec=True
-        ) as mock_task:
+        with patch("fxsharing.shares.views.process_report") as mock_task:
             response = self.client.post(
                 reverse("report_share", args=[share.shortcode]),
                 data=json.dumps({"reason": "spam"}),
@@ -368,9 +366,7 @@ class TestReportShare(TestCase):
         body = json.dumps({"reason": "spam"})
         ct = "application/json"
         self.client.post(url, data=body, content_type=ct)
-        with patch(
-            "fxsharing.shares.views.process_report", autospec=True
-        ) as mock_task:
+        with patch("fxsharing.shares.views.process_report") as mock_task:
             response = self.client.post(url, data=body, content_type=ct)
         assert response.status_code == 429
         mock_task.delay.assert_not_called()

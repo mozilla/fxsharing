@@ -104,6 +104,10 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+# Cinder (Trust & Safety) — used to forward user reports.
+CINDER_TENANT = env("CINDER_TENANT", default="")
+CINDER_API_KEY = env("CINDER_API_KEY", default="")
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
