@@ -15,6 +15,7 @@ dependencies = [
     "django-modern-csrf>=1.0.1",
     "dockerflow>=2026.3.0",
     "gunicorn>=23.0.0",
+    "whitenoise>=6.0.0",
     "jsonschema>=4.26.0",
     "psycopg[binary]>=3.2.0",
     "requests>=2.32.5",
