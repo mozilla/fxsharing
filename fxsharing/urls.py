@@ -16,10 +16,17 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+
+from fxsharing.shares import views as shares_views
 
 urlpatterns = [
     path("", include("fxsharing.shares.urls")),
+    re_path(
+        r"^(?P<shortcode>[A-Za-z0-9]{10})$",
+        shares_views.view_share,
+        name="view_share",
+    ),
     path("accounts/", include("allauth.urls")),
     path("admin/", admin.site.urls),
 ]

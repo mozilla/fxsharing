@@ -53,7 +53,7 @@ The `/__lbheartbeat__`, `/__heartbeat__`, and `/__version__` endpoints are provi
 - `GET /__heartbeat__` — application health check
 - `GET /__version__` — deployed version info
 - `POST /api/v1/create` — create a share (requires authentication; JSON body, see `share_schema.py` for schema)
-- `GET /s/<shortcode>` — view share page
+- `GET /<shortcode>` — view share page
 - `GET /api/v1/share/<shortcode>` — share data as JSON
 
 To test authenticated endpoints locally, log in first via the dummy FxA provider at `http://localhost:8000/accounts/dummy/login/`.

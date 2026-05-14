@@ -83,8 +83,10 @@ customElements.define("moz-link", MozLink);
 
 class MozShare extends MozLitElement {
   static properties = {
+    shortcode: { type: String },
     share: { type: Object },
     reportSubmitted: { type: Boolean, state: true },
+    reportError: { type: Boolean, state: true },
   };
   static styles = css`
     .share {
@@ -168,15 +170,15 @@ class MozShare extends MozLitElement {
     });
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-
-    this.init();
+  updated(changedProperties) {
+    if (changedProperties.has("shortcode") && this.shortcode) {
+      this.init();
+    }
   }
 
   async init() {
     try {
-      const response = await fetch("/api/v1/share" + window.location.pathname);
+      const response = await fetch(`/api/v1/share/${this.shortcode}`);
       if (!response.ok) {
         throw new Error(`Failed to load share: ${response.status}`);
       }
@@ -211,22 +213,46 @@ class MozShare extends MozLitElement {
     this.reportDialog.close();
   }
 
-  submitReport() {
+  async submitReport() {
+    const reason = this.reportForm.querySelector("moz-radio-group").value;
+
     this.reportForm.reset();
     this.reportDialog.close();
-    this.reportSubmitted = true;
+
+    try {
+      const response = await fetch(`/api/v1/report/${this.shortcode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (!response.ok) {
+        throw new Error(`Report failed: ${response.status}`);
+      }
+      this.reportSubmitted = true;
+    } catch (e) {
+      console.error(e);
+      this.reportError = true;
+    }
   }
 
   reportConfirmationTemplate() {
-    if (!this.reportSubmitted) {
-      return null;
+    if (this.reportSubmitted) {
+      return html`<moz-message-bar
+        type="success"
+        message="Your report has been submitted"
+        dismissable
+        @message-bar:user-dismissed=${() => (this.reportSubmitted = false)}
+      ></moz-message-bar>`;
     }
-    return html`<moz-message-bar
-      type="success"
-      message="Your report has been submitted"
-      dismissable
-      @message-bar:user-dismissed=${() => (this.reportSubmitted = false)}
-    ></moz-message-bar>`;
+    if (this.reportError) {
+      return html`<moz-message-bar
+        type="error"
+        message="Something went wrong. Please try again."
+        dismissable
+        @message-bar:user-dismissed=${() => (this.reportError = false)}
+      ></moz-message-bar>`;
+    }
+    return null;
   }
 
   reportButtonTemplate() {
