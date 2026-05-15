@@ -43,7 +43,7 @@ flower:
 	uv run celery -A fxsharing flower --port=5555
 
 up:
-	docker compose up -d
+	docker compose up -d --build
 
 down:
 	docker compose down

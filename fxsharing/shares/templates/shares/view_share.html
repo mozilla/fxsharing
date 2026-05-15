@@ -7,7 +7,6 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
     <link rel="stylesheet" href="{% static 'styles/moz-share.css' %}" />
-    {{ share_data|json_script:"share-data" }}
     <script src="{% static 'components/moz-share.mjs' %}" type="module"></script>
   </head>
 
@@ -29,6 +28,7 @@
         </div>
       </form>
     </dialog>
+    {{ share_data|json_script:"share-data" }}
     <script>
       document.getElementById("cancel-report").addEventListener("click", () => {
         document.getElementById("report-dialog").close();
