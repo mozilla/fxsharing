@@ -237,7 +237,6 @@ class TestCreateShareRequiresAuth(TestCase):
         assert Share.objects.count() == 0
 
 
-
 class TestViewShare(TestCase):
     @classmethod
     def setUpTestData(cls):

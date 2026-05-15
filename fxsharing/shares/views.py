@@ -2,8 +2,8 @@ import hashlib
 import json
 from datetime import timedelta
 
-from django.db import transaction
 from django.contrib import messages
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -35,10 +35,14 @@ def shares(request):
 
 def view_share(request, shortcode):
     share = get_object_or_404(Share, shortcode=shortcode)
-    return render(request, "shares/view_share.html", {
-        "shortcode": shortcode,
-        "share_data": share.to_dict(),
-    })
+    return render(
+        request,
+        "shares/view_share.html",
+        {
+            "shortcode": shortcode,
+            "share_data": share.to_dict(),
+        },
+    )
 
 
 SHARE_EXPIRY_DAYS = 7
