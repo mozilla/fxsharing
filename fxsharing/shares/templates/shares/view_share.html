@@ -7,10 +7,35 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
     <link rel="stylesheet" href="{% static 'styles/moz-share.css' %}" />
+    {{ share_data|json_script:"share-data" }}
     <script src="{% static 'components/moz-share.mjs' %}" type="module"></script>
   </head>
 
   <body>
+    {% for message in messages %}<p id="report-confirmation">{{ message }}</p>{% endfor %}
     <moz-share shortcode="{{ shortcode }}"></moz-share>
+    <dialog id="report-dialog">
+      <form method="post" action="{% url 'report_share' shortcode %}">
+<input type="hidden" id="reason-input" name="reason" value="copyright">
+        <moz-radio-group id="report-reason-group" label="Why are you reporting this page?" name="reason" value="copyright">
+          <moz-radio value="copyright" label="Contains copyright protected content"></moz-radio>
+          <moz-radio value="harmful" label="Contains sexual, violent, or other harmful content"></moz-radio>
+          <moz-radio value="spam" label="Contains spam or malware"></moz-radio>
+          <moz-radio value="other" label="Other"></moz-radio>
+        </moz-radio-group>
+        <div class="report-actions">
+          <button type="button" id="cancel-report">Cancel</button>
+          <button type="submit">Submit</button>
+        </div>
+      </form>
+    </dialog>
+    <script>
+      document.getElementById("cancel-report").addEventListener("click", () => {
+        document.getElementById("report-dialog").close();
+      });
+      document.getElementById("report-reason-group").addEventListener("change", (e) => {
+        document.getElementById("reason-input").value = e.target.value;
+      });
+    </script>
   </body>
 </html>

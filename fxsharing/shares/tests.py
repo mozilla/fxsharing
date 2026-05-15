@@ -277,18 +277,17 @@ class TestReportShare(TestCase):
         share = Share.objects.create(title="Test Share", user=self.user)
         response = self.client.post(
             reverse("report_share", args=[share.shortcode]),
-            data=json.dumps({"reason": "spam"}),
-            content_type="application/json",
+            data={"reason": "spam"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert response["Location"] == reverse("view_share", args=[share.shortcode])
         share.refresh_from_db()
         assert share.status == "under_review"
 
     def test_report_returns_404_for_unknown_shortcode(self):
         response = self.client.post(
             reverse("report_share", args=["doesnotexist"]),
-            data=json.dumps({"reason": "spam"}),
-            content_type="application/json",
+            data={"reason": "spam"},
         )
         assert response.status_code == 404
 
@@ -296,8 +295,7 @@ class TestReportShare(TestCase):
         share = Share.objects.create(title="Test Share", user=self.user)
         response = self.client.post(
             reverse("report_share", args=[share.shortcode]),
-            data=json.dumps({"reason": "notareason"}),
-            content_type="application/json",
+            data={"reason": "notareason"},
         )
         assert response.status_code == 400
 

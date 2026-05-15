@@ -3,8 +3,10 @@ import json
 from datetime import timedelta
 
 from django.db import transaction
+from django.contrib import messages
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape
 from django.views.decorators.http import require_POST
@@ -37,9 +39,11 @@ def api_share(request, shortcode):
 
 
 def view_share(request, shortcode):
-    # 404 if shortcode unknown; share data is fetched client-side by moz-share.mjs
-    get_object_or_404(Share, shortcode=shortcode)
-    return render(request, "shares/view_share.html", {"shortcode": shortcode})
+    share = get_object_or_404(Share, shortcode=shortcode)
+    return render(request, "shares/view_share.html", {
+        "shortcode": shortcode,
+        "share_data": share.to_dict(),
+    })
 
 
 SHARE_EXPIRY_DAYS = 7
@@ -113,12 +117,7 @@ VALID_REPORT_REASONS = {"copyright", "harmful", "spam", "other"}
 @require_POST
 @csrf_protect
 def report_share(request, shortcode):
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return HttpResponseBadRequest("Invalid JSON in request body")
-
-    reason = data.get("reason")
+    reason = request.POST.get("reason")
 
     if not reason:
         return HttpResponseBadRequest("Missing required field: reason")
@@ -132,7 +131,8 @@ def report_share(request, shortcode):
         status=ShareStatus.UNDER_REVIEW
     )
 
-    return JsonResponse({"status": "reported"})
+    messages.success(request, "Your report has been submitted.")
+    return redirect(reverse("view_share", args=[shortcode]))
 
 
 def auth_complete(request):

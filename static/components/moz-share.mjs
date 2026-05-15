@@ -85,8 +85,6 @@ class MozShare extends MozLitElement {
   static properties = {
     shortcode: { type: String },
     share: { type: Object },
-    reportSubmitted: { type: Boolean, state: true },
-    reportError: { type: Boolean, state: true },
   };
   static styles = css`
     .share {
@@ -152,8 +150,6 @@ class MozShare extends MozLitElement {
 
   static queries = {
     copyButton: "#copy-button",
-    reportDialog: "#report-dialog",
-    reportForm: "#report-form",
   };
 
   get dateFormatted() {
@@ -176,16 +172,8 @@ class MozShare extends MozLitElement {
     }
   }
 
-  async init() {
-    try {
-      const response = await fetch(`/api/v1/share/${this.shortcode}`);
-      if (!response.ok) {
-        throw new Error(`Failed to load share: ${response.status}`);
-      }
-      this.share = await response.json();
-    } catch (e) {
-      console.error(e);
-    }
+  init() {
+    this.share = JSON.parse(document.getElementById("share-data").textContent);
   }
 
   copyLink() {
@@ -206,91 +194,13 @@ class MozShare extends MozLitElement {
   }
 
   openReportDialog() {
-    this.reportDialog.showModal();
-  }
-
-  cancelReport() {
-    this.reportDialog.close();
-  }
-
-  async submitReport() {
-    const reason = this.reportForm.querySelector("moz-radio-group").value;
-
-    this.reportForm.reset();
-    this.reportDialog.close();
-
-    try {
-      const response = await fetch(`/api/v1/report/${this.shortcode}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      });
-      if (!response.ok) {
-        throw new Error(`Report failed: ${response.status}`);
-      }
-      this.reportSubmitted = true;
-    } catch (e) {
-      console.error(e);
-      this.reportError = true;
-    }
-  }
-
-  reportConfirmationTemplate() {
-    if (this.reportSubmitted) {
-      return html`<moz-message-bar
-        type="success"
-        message="Your report has been submitted"
-        dismissable
-        @message-bar:user-dismissed=${() => (this.reportSubmitted = false)}
-      ></moz-message-bar>`;
-    }
-    if (this.reportError) {
-      return html`<moz-message-bar
-        type="error"
-        message="Something went wrong. Please try again."
-        dismissable
-        @message-bar:user-dismissed=${() => (this.reportError = false)}
-      ></moz-message-bar>`;
-    }
-    return null;
+    document.getElementById("report-dialog").showModal();
   }
 
   reportButtonTemplate() {
     return html`<moz-button id="report-button" @click=${this.openReportDialog}
       >Report unsafe page</moz-button
     >`;
-  }
-
-  reportDialogTemplate() {
-    return html`<dialog id="report-dialog">
-      <form id="report-form">
-        <moz-radio-group
-          label="Why are you reporting this page?"
-          name="reason"
-          value="copyright"
-        >
-          <moz-radio
-            value="copyright"
-            label="Contains copyright protected content"
-          ></moz-radio>
-          <moz-radio
-            value="harmful"
-            label="Contains sexual, violent, or other harmful content"
-          ></moz-radio>
-          <moz-radio
-            value="spam"
-            label="Contains spam or malware"
-          ></moz-radio>
-          <moz-radio value="other" label="Other"></moz-radio>
-        </moz-radio-group>
-        <div class="report-actions">
-          <moz-button @click=${this.cancelReport}>Cancel</moz-button>
-          <moz-button type="primary" @click=${this.submitReport}
-            >Submit</moz-button
-          >
-        </div>
-      </form>
-    </dialog>`;
   }
 
   render() {
@@ -316,8 +226,6 @@ class MozShare extends MozLitElement {
           ${this.copyButtonTemplate()}
           ${this.reportButtonTemplate()}
         </div>
-        ${this.reportConfirmationTemplate()}
-        ${this.reportDialogTemplate()}
       </div>
       <moz-card
         ><div class="container">
