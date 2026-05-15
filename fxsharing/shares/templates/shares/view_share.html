@@ -11,12 +11,13 @@
   </head>
 
   <body>
-    {% for message in messages %}<p id="report-confirmation">{{ message }}</p>{% endfor %}
-    <moz-share shortcode="{{ shortcode }}"></moz-share>
+    <div class="share-wrapper">
+      <moz-share></moz-share>
+      {% for message in messages %}<moz-message-bar type="success" message="{{ message }}" dismissable></moz-message-bar>{% endfor %}
+    </div>
     <dialog id="report-dialog">
       <form method="post" action="{% url 'report_share' shortcode %}">
-<input type="hidden" id="reason-input" name="reason" value="copyright">
-        <moz-radio-group id="report-reason-group" label="Why are you reporting this page?" name="reason" value="copyright">
+        <moz-radio-group label="Why are you reporting this page?" name="reason" value="copyright">
           <moz-radio value="copyright" label="Contains copyright protected content"></moz-radio>
           <moz-radio value="harmful" label="Contains sexual, violent, or other harmful content"></moz-radio>
           <moz-radio value="spam" label="Contains spam or malware"></moz-radio>
@@ -32,9 +33,6 @@
     <script>
       document.getElementById("cancel-report").addEventListener("click", () => {
         document.getElementById("report-dialog").close();
-      });
-      document.getElementById("report-reason-group").addEventListener("change", (e) => {
-        document.getElementById("reason-input").value = e.target.value;
       });
     </script>
   </body>

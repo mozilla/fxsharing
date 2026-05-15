@@ -83,7 +83,6 @@ customElements.define("moz-link", MozLink);
 
 class MozShare extends MozLitElement {
   static properties = {
-    shortcode: { type: String },
     share: { type: Object },
   };
   static styles = css`
@@ -129,23 +128,6 @@ class MozShare extends MozLitElement {
       gap: var(--space-small);
     }
 
-    #report-dialog {
-      border: none;
-      border-radius: var(--border-radius-medium);
-      padding: var(--space-xxlarge);
-      max-width: 400px;
-    }
-
-    #report-dialog::backdrop {
-      background-color: rgba(0, 0, 0, 0.5);
-    }
-
-    .report-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: var(--space-small);
-      margin-top: var(--space-large);
-    }
   `;
 
   static queries = {
@@ -166,10 +148,9 @@ class MozShare extends MozLitElement {
     });
   }
 
-  updated(changedProperties) {
-    if (changedProperties.has("shortcode") && this.shortcode) {
-      this.init();
-    }
+  connectedCallback() {
+    super.connectedCallback();
+    this.init();
   }
 
   init() {

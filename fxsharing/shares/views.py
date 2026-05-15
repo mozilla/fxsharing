@@ -33,7 +33,6 @@ def shares(request):
     )
 
 
-
 def view_share(request, shortcode):
     share = get_object_or_404(Share, shortcode=shortcode)
     return render(request, "shares/view_share.html", {
