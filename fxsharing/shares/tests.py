@@ -176,9 +176,7 @@ class TestCreateShare(TestCase):
         )
         assert response.status_code == 201
         share = Share.objects.get()
-        api_response = self.client.get(reverse("api_share", args=[share.shortcode]))
-        data = api_response.json()
-        assert len(data["links"]) == 2
+        assert share.links.count() == 2
 
     def test_duplicate_request_returns_same_url(self):
         payload = {
@@ -238,23 +236,6 @@ class TestCreateShareRequiresAuth(TestCase):
         assert response.status_code == 401
         assert Share.objects.count() == 0
 
-
-class TestApiShare(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6alice")
-
-    def test_returns_share_json(self):
-        share = Share.objects.create(title="Test Share", user=self.user)
-        response = self.client.get(reverse("api_share", args=[share.shortcode]))
-        assert response.status_code == 200
-        data = response.json()
-        assert data["title"] == "Test Share"
-        assert data["id"] == str(share.id)
-
-    def test_returns_404_for_unknown_shortcode(self):
-        response = self.client.get(reverse("api_share", args=["doesnotexist"]))
-        assert response.status_code == 404
 
 
 class TestViewShare(TestCase):
