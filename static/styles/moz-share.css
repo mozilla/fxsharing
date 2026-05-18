@@ -24,21 +24,3 @@ moz-message-bar {
   z-index: 2;
   --message-bar-icon-close-url: url("/static/assets/close.svg");
 }
-
-#report-dialog {
-  border: none;
-  border-radius: var(--border-radius-medium);
-  padding: var(--space-xxlarge);
-  max-width: 400px;
-}
-
-#report-dialog::backdrop {
-  background-color: rgba(0, 0, 0, 0.5);
-}
-
-.report-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-small);
-  margin-top: var(--space-large);
-}

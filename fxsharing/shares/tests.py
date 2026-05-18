@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
@@ -261,6 +262,9 @@ class TestReportShare(TestCase):
         )
         assert response.status_code == 302
         assert response["Location"] == reverse("view_share", args=[share.shortcode])
+        assert [str(m) for m in get_messages(response.wsgi_request)] == [
+            "Your report has been submitted."
+        ]
         share.refresh_from_db()
         assert share.status == "under_review"
 

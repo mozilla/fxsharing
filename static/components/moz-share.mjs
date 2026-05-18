@@ -128,10 +128,28 @@ class MozShare extends MozLitElement {
       gap: var(--space-small);
     }
 
+    #report-dialog {
+      border: none;
+      border-radius: var(--border-radius-medium);
+      padding: var(--space-xxlarge);
+      max-width: 400px;
+    }
+
+    #report-dialog::backdrop {
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .report-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-small);
+      margin-top: var(--space-large);
+    }
   `;
 
   static queries = {
     copyButton: "#copy-button",
+    reportDialog: "#report-dialog",
   };
 
   get dateFormatted() {
@@ -154,7 +172,12 @@ class MozShare extends MozLitElement {
   }
 
   init() {
-    this.share = JSON.parse(document.getElementById("share-data").textContent);
+    const dataEl = this.querySelector("script[type='application/json']");
+    try {
+      this.share = JSON.parse(dataEl.textContent);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   copyLink() {
@@ -175,7 +198,38 @@ class MozShare extends MozLitElement {
   }
 
   openReportDialog() {
-    document.getElementById("report-dialog").showModal();
+    this.reportDialog.showModal();
+  }
+
+  cancelReport() {
+    this.reportDialog.close();
+  }
+
+  reportDialogTemplate() {
+    return html`<dialog id="report-dialog">
+      <form method="post" action="/report/${this.share.shortcode}">
+        <moz-radio-group
+          label="Why are you reporting this page?"
+          name="reason"
+          value="copyright"
+        >
+          <moz-radio
+            value="copyright"
+            label="Contains copyright protected content"
+          ></moz-radio>
+          <moz-radio
+            value="harmful"
+            label="Contains sexual, violent, or other harmful content"
+          ></moz-radio>
+          <moz-radio value="spam" label="Contains spam or malware"></moz-radio>
+          <moz-radio value="other" label="Other"></moz-radio>
+        </moz-radio-group>
+        <div class="report-actions">
+          <button type="button" @click=${this.cancelReport}>Cancel</button>
+          <button type="submit">Submit</button>
+        </div>
+      </form>
+    </dialog>`;
   }
 
   reportButtonTemplate() {
@@ -208,6 +262,7 @@ class MozShare extends MozLitElement {
           ${this.reportButtonTemplate()}
         </div>
       </div>
+      ${this.reportDialogTemplate()}
       <moz-card
         ><div class="container">
           <h1>${this.share.title}</h1>

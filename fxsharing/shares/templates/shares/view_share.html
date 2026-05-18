@@ -12,28 +12,8 @@
 
   <body>
     <div class="share-wrapper">
-      <moz-share></moz-share>
+      <moz-share>{{ share_data|json_script }}</moz-share>
       {% for message in messages %}<moz-message-bar type="success" message="{{ message }}" dismissable></moz-message-bar>{% endfor %}
     </div>
-    <dialog id="report-dialog">
-      <form method="post" action="{% url 'report_share' shortcode %}">
-        <moz-radio-group label="Why are you reporting this page?" name="reason" value="copyright">
-          <moz-radio value="copyright" label="Contains copyright protected content"></moz-radio>
-          <moz-radio value="harmful" label="Contains sexual, violent, or other harmful content"></moz-radio>
-          <moz-radio value="spam" label="Contains spam or malware"></moz-radio>
-          <moz-radio value="other" label="Other"></moz-radio>
-        </moz-radio-group>
-        <div class="report-actions">
-          <button type="button" id="cancel-report">Cancel</button>
-          <button type="submit">Submit</button>
-        </div>
-      </form>
-    </dialog>
-    {{ share_data|json_script:"share-data" }}
-    <script>
-      document.getElementById("cancel-report").addEventListener("click", () => {
-        document.getElementById("report-dialog").close();
-      });
-    </script>
   </body>
 </html>
