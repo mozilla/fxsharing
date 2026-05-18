@@ -83,10 +83,7 @@ customElements.define("moz-link", MozLink);
 
 class MozShare extends MozLitElement {
   static properties = {
-    shortcode: { type: String },
     share: { type: Object },
-    reportSubmitted: { type: Boolean, state: true },
-    reportError: { type: Boolean, state: true },
   };
   static styles = css`
     .share {
@@ -153,7 +150,6 @@ class MozShare extends MozLitElement {
   static queries = {
     copyButton: "#copy-button",
     reportDialog: "#report-dialog",
-    reportForm: "#report-form",
   };
 
   get dateFormatted() {
@@ -170,19 +166,15 @@ class MozShare extends MozLitElement {
     });
   }
 
-  updated(changedProperties) {
-    if (changedProperties.has("shortcode") && this.shortcode) {
-      this.init();
-    }
+  connectedCallback() {
+    super.connectedCallback();
+    this.init();
   }
 
-  async init() {
+  init() {
+    const dataEl = this.querySelector("script[type='application/json']");
     try {
-      const response = await fetch(`/api/v1/share/${this.shortcode}`);
-      if (!response.ok) {
-        throw new Error(`Failed to load share: ${response.status}`);
-      }
-      this.share = await response.json();
+      this.share = JSON.parse(dataEl.textContent);
     } catch (e) {
       console.error(e);
     }
@@ -213,57 +205,9 @@ class MozShare extends MozLitElement {
     this.reportDialog.close();
   }
 
-  async submitReport() {
-    const reason = this.reportForm.querySelector("moz-radio-group").value;
-
-    this.reportForm.reset();
-    this.reportDialog.close();
-
-    try {
-      const response = await fetch(`/api/v1/report/${this.shortcode}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      });
-      if (!response.ok) {
-        throw new Error(`Report failed: ${response.status}`);
-      }
-      this.reportSubmitted = true;
-    } catch (e) {
-      console.error(e);
-      this.reportError = true;
-    }
-  }
-
-  reportConfirmationTemplate() {
-    if (this.reportSubmitted) {
-      return html`<moz-message-bar
-        type="success"
-        message="Your report has been submitted"
-        dismissable
-        @message-bar:user-dismissed=${() => (this.reportSubmitted = false)}
-      ></moz-message-bar>`;
-    }
-    if (this.reportError) {
-      return html`<moz-message-bar
-        type="error"
-        message="Something went wrong. Please try again."
-        dismissable
-        @message-bar:user-dismissed=${() => (this.reportError = false)}
-      ></moz-message-bar>`;
-    }
-    return null;
-  }
-
-  reportButtonTemplate() {
-    return html`<moz-button id="report-button" @click=${this.openReportDialog}
-      >Report unsafe page</moz-button
-    >`;
-  }
-
   reportDialogTemplate() {
     return html`<dialog id="report-dialog">
-      <form id="report-form">
+      <form method="post" action="/report/${this.share.shortcode}">
         <moz-radio-group
           label="Why are you reporting this page?"
           name="reason"
@@ -277,20 +221,21 @@ class MozShare extends MozLitElement {
             value="harmful"
             label="Contains sexual, violent, or other harmful content"
           ></moz-radio>
-          <moz-radio
-            value="spam"
-            label="Contains spam or malware"
-          ></moz-radio>
+          <moz-radio value="spam" label="Contains spam or malware"></moz-radio>
           <moz-radio value="other" label="Other"></moz-radio>
         </moz-radio-group>
         <div class="report-actions">
-          <moz-button @click=${this.cancelReport}>Cancel</moz-button>
-          <moz-button type="primary" @click=${this.submitReport}
-            >Submit</moz-button
-          >
+          <button type="button" @click=${this.cancelReport}>Cancel</button>
+          <button type="submit">Submit</button>
         </div>
       </form>
     </dialog>`;
+  }
+
+  reportButtonTemplate() {
+    return html`<moz-button id="report-button" @click=${this.openReportDialog}
+      >Report unsafe page</moz-button
+    >`;
   }
 
   render() {
@@ -316,9 +261,8 @@ class MozShare extends MozLitElement {
           ${this.copyButtonTemplate()}
           ${this.reportButtonTemplate()}
         </div>
-        ${this.reportConfirmationTemplate()}
-        ${this.reportDialogTemplate()}
       </div>
+      ${this.reportDialogTemplate()}
       <moz-card
         ><div class="container">
           <h1>${this.share.title}</h1>

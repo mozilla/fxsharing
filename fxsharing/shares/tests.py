@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
@@ -176,9 +177,7 @@ class TestCreateShare(TestCase):
         )
         assert response.status_code == 201
         share = Share.objects.get()
-        api_response = self.client.get(reverse("api_share", args=[share.shortcode]))
-        data = api_response.json()
-        assert len(data["links"]) == 2
+        assert share.links.count() == 2
 
     def test_duplicate_request_returns_same_url(self):
         payload = {
@@ -239,24 +238,6 @@ class TestCreateShareRequiresAuth(TestCase):
         assert Share.objects.count() == 0
 
 
-class TestApiShare(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6alice")
-
-    def test_returns_share_json(self):
-        share = Share.objects.create(title="Test Share", user=self.user)
-        response = self.client.get(reverse("api_share", args=[share.shortcode]))
-        assert response.status_code == 200
-        data = response.json()
-        assert data["title"] == "Test Share"
-        assert data["id"] == str(share.id)
-
-    def test_returns_404_for_unknown_shortcode(self):
-        response = self.client.get(reverse("api_share", args=["doesnotexist"]))
-        assert response.status_code == 404
-
-
 class TestViewShare(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -277,18 +258,20 @@ class TestReportShare(TestCase):
         share = Share.objects.create(title="Test Share", user=self.user)
         response = self.client.post(
             reverse("report_share", args=[share.shortcode]),
-            data=json.dumps({"reason": "spam"}),
-            content_type="application/json",
+            data={"reason": "spam"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert response["Location"] == reverse("view_share", args=[share.shortcode])
+        assert [str(m) for m in get_messages(response.wsgi_request)] == [
+            "Your report has been submitted."
+        ]
         share.refresh_from_db()
         assert share.status == "under_review"
 
     def test_report_returns_404_for_unknown_shortcode(self):
         response = self.client.post(
             reverse("report_share", args=["doesnotexist"]),
-            data=json.dumps({"reason": "spam"}),
-            content_type="application/json",
+            data={"reason": "spam"},
         )
         assert response.status_code == 404
 
@@ -296,8 +279,7 @@ class TestReportShare(TestCase):
         share = Share.objects.create(title="Test Share", user=self.user)
         response = self.client.post(
             reverse("report_share", args=[share.shortcode]),
-            data=json.dumps({"reason": "notareason"}),
-            content_type="application/json",
+            data={"reason": "notareason"},
         )
         assert response.status_code == 400
 

@@ -11,6 +11,9 @@
   </head>
 
   <body>
-    <moz-share shortcode="{{ shortcode }}"></moz-share>
+    <div class="share-wrapper">
+      <moz-share>{{ share_data|json_script }}</moz-share>
+      {% for message in messages %}<moz-message-bar type="success" message="{{ message }}" dismissable></moz-message-bar>{% endfor %}
+    </div>
   </body>
 </html>
