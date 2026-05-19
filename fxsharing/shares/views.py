@@ -129,3 +129,9 @@ def report_share(request, shortcode):
 
 def auth_complete(request):
     return render(request, "shares/view_auth_complete.html")
+
+
+def landing(request):
+    ua = request.META.get("HTTP_USER_AGENT", "")
+    is_firefox = "Firefox/" in ua
+    return render(request, "shares/landing.html", {"show_firefox_cta": not is_firefox})
