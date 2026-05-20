@@ -47,7 +47,11 @@ def fetch_link_preview(link_id):
             og_tags[prop.replace("og:", "")] = content
 
     favicon_tag = soup.find("link", rel=lambda r: r and "icon" in r, href=True)
-    favicon_url = requests.compat.urljoin(link.url, favicon_tag["href"])[:2048] if favicon_tag else ""
+    favicon_url = (
+        requests.compat.urljoin(link.url, favicon_tag["href"])[:2048]
+        if favicon_tag
+        else ""
+    )
 
     Link.objects.filter(id=link_id).update(
         favicon_url=favicon_url,
