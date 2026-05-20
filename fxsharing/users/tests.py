@@ -37,3 +37,42 @@ class TestUserModel(TestCase):
     def test_str(self):
         user = User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
         assert str(user) == "a1b2c3d4e5f6789abc"
+
+
+class TestSoftDeleteUser(TestCase):
+    def test_delete_sets_deleted_at_and_hides_from_default_manager(self):
+        from fxsharing.shares.models import Share
+
+        user = User.objects.create_user(fxa_id="softdel1")
+        user.delete()
+        assert not User.objects.filter(pk=user.pk).exists()
+        assert User.all_objects.filter(pk=user.pk).exists()
+        assert User.all_objects.get(pk=user.pk).deleted_at is not None
+        # Sanity: confirm Share import wasn't broken by cross-app import
+        assert Share.objects.filter(user=user).count() == 0
+
+    def test_delete_cascades_to_shares_and_links(self):
+        from fxsharing.shares.models import Link, Share
+
+        user = User.objects.create_user(fxa_id="softdel2")
+        share = Share.objects.create(title="S", user=user)
+        link = Link.objects.create(share=share, url="https://example.com")
+        user.delete()
+        assert not Share.objects.filter(pk=share.pk).exists()
+        assert not Link.objects.filter(pk=link.pk).exists()
+        assert Share.all_objects.get(pk=share.pk).deleted_at is not None
+
+    def test_soft_deleted_user_not_authenticatable(self):
+        user = User.objects.create_user(fxa_id="softdel3")
+        user.delete()
+        from django.contrib.auth import get_user_model
+
+        UserModel = get_user_model()
+        with self.assertRaises(UserModel.DoesNotExist):
+            UserModel.objects.get(fxa_id="softdel3")
+
+    def test_fxa_id_unique_blocks_resignup_after_soft_delete(self):
+        user = User.objects.create_user(fxa_id="softdel4")
+        user.delete()
+        with self.assertRaises(IntegrityError):
+            User.objects.create_user(fxa_id="softdel4")

@@ -6,9 +6,12 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 from django.db import models
+from django.utils import timezone
+
+from fxsharing.shares.models import SoftDeleteQuerySet
 
 
-class UserManager(BaseUserManager):
+class UserManager(BaseUserManager.from_queryset(SoftDeleteQuerySet)):
     def create_user(self, fxa_id, **extra_fields):
         if not fxa_id:
             raise ValueError("fxa_id is required")
@@ -22,6 +25,9 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_superuser", True)
         return self.create_user(fxa_id, **extra_fields)
 
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -30,11 +36,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "fxa_id"
     REQUIRED_FIELDS = []
 
     objects = UserManager()
+    all_objects = BaseUserManager.from_queryset(SoftDeleteQuerySet)()
 
     def __str__(self):
         return self.fxa_id
+
+    def delete(self, *args, **kwargs):
+        # Soft-delete only. There is no hard-delete path on this model.
+        # Cascades to the user's shares (which in turn hides their links via
+        # LinkManager). Already-deleted shares are untouched.
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["deleted_at"])
+        self.shares.all().delete()
