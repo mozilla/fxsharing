@@ -1,16 +1,1 @@
-<!-- This Source Code Form is subject to the terms of the Mozilla Public
-   - License, v. 2.0. If a copy of the MPL was not distributed with this
-   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect y="16" width="120" height="24" fill="white"/>
-<rect y="12" width="120" height="4" fill="#F9F9FB"/>
-<rect width="120" height="12" fill="#F0F0F4"/>
-<mask id="mask0" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="42" y="0" width="86" height="41">
-<path d="M76 0.0661167C76 0.0661167 60.5 -1.9339 60.5 16.0661C60.5 37.0662 48.3333 40.0661 42 40.5661L128 40.5662V0.0661167H76Z" fill="#D9D9D9"/>
-</mask>
-<g mask="url(#mask0)">
-<path d="M45 16H120V40H45V16Z" fill="#42414D"/>
-<path d="M45 0H120V12H45V0Z" fill="#1C1B22"/>
-<path d="M45 12H120V16H45V12Z" fill="#2B2A33"/>
-</g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" fill="none" viewBox="0 0 120 40"><path fill="#fff" d="M0 16h120v24H0z"/><path fill="#f9f9fb" d="M0 12h120v4H0z"/><path fill="#f0f0f4" d="M0 0h120v12H0z"/><mask id="a" width="86" height="41" x="42" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#d9d9d9" d="M76 .066s-15.5-2-15.5 16c0 21-12.167 24-18.5 24.5h86V.066z"/></mask><g mask="url(#a)"><path fill="#42414d" d="M45 16h75v24H45z"/><path fill="#1c1b22" d="M45 0h75v12H45z"/><path fill="#2b2a33" d="M45 12h75v4H45z"/></g></svg>

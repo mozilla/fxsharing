@@ -1,82 +1,133 @@
 import { MozLitElement } from "../dependencies/lit-utils.mjs";
-import { html, ifDefined, when, css } from "../dependencies/lit.all.mjs";
-import "./moz-card/moz-card.mjs";
+import { html, css } from "../dependencies/lit.all.mjs";
 import "./moz-button/moz-button.mjs";
+import "./moz-card/moz-card.mjs";
 import "./moz-radio-group/moz-radio-group.mjs";
 import "./moz-message-bar/moz-message-bar.mjs";
 
+function faviconUrl(link) {
+  if (link.favicon_url) {
+    return link.favicon_url;
+  }
+  try {
+    return new URL(link.url).origin + "/favicon.ico";
+  } catch {
+    return "/static/assets/default-favicon-light.svg";
+  }
+}
+
 class MozLink extends MozLitElement {
-  static properties = { link: { type: Object } };
+  static properties = {
+    link: { type: Object },
+    faviconError: { type: Boolean, state: true },
+  };
+
   static styles = css`
-    .clickable-container {
+    moz-card {
+      --card-padding: 0;
+    }
+
+    .link-anchor {
+      align-items: center;
+      color: var(--text-color);
+      display: flex;
+      gap: var(--space-large);
+      padding: var(--space-large);
+      text-decoration: none;
+    }
+
+    .favicon-container picture {
+      width: 40px;
+      height: 40px;
+    }
+
+    .favicon {
+      border-radius: var(--border-radius-small);
+      width: 40px;
+    }
+
+    .link-text {
       display: flex;
       flex-direction: column;
-      cursor: pointer;
-      width: 308px;
-      text-decoration: none;
-      color: var(--text-color);
+      flex: 1;
+      min-width: 0;
     }
 
-    moz-card {
-      width: 308px;
-      height: 183px;
-      position: relative;
+    .link-title {
+      margin-block: 0 var(--space-small);
+    }
 
-      &::part(moz-card),
-      &::part(content) {
-        padding: 0;
+    .link-url {
+      margin: 0;
+    }
+
+    @media (max-width: 964px) {
+      .favicon-container picture {
+        width: 24px;
+        height: 24px;
       }
-    }
 
-    .og-image {
-      position: absolute;
-      max-width: 100%;
-      max-height: 100%;
-      width: 100%;
-      height: 100%;
-      border-radius: var(--card-border-radius);
-    }
-
-    .title {
-    }
-
-    .url {
-      color: var(--text-color-deemphasized);
-      font-size: var(--font-size-small);
+      .favicon {
+        width: 24px;
+      }
     }
   `;
 
-  // connectedCallback() {
-  //   super.connectedCallback();
-
-  //   this.init();
-  // }
-
-  // async init() {
-  //   const response = await fetch(this.link.url);
-  //   console.log(response);
-  //   // const share = await response.json();
-  //   // this.share = share;
-  // }
+  handleFaviconError() {
+    this.faviconError = true;
+  }
 
   render() {
-    if (!this.link) {
+    if (!this.link?.url) {
       return null;
     }
 
-    return html`<a
-      class="clickable-container"
-      href=${this.link.url}
-      target="_blank"
-    >
-      <moz-card
-        ><img class="og-image" src=${this.link.opengraph?.image ?? ""}
-      /></moz-card>
-      <span class="title"
-        >${this.link.opengraph?.title ?? this.link.title}</span
-      >
-      <span class="url">${this.link.url}</span>
-    </a>`;
+    const title = this.link.preview_title || this.link.title;
+
+    return html`
+      <moz-card>
+        <a
+          class="link-anchor"
+          href=${this.link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <div class="favicon-container">
+            <picture>
+              ${this.faviconError
+                ? html`<source
+                    srcset="/static/assets/default-favicon-dark.svg"
+                    media="(prefers-color-scheme: dark)"
+                  />`
+                : ""}
+              <img
+                class="favicon"
+                src=${this.faviconError
+                  ? "/static/assets/default-favicon-light.svg"
+                  : faviconUrl(this.link)}
+                alt=""
+                @error=${this.handleFaviconError}
+              />
+            </picture>
+          </div>
+          <div class="link-text">
+            <p class="link-title">${title}</p>
+            <p class="link-url">${this.link.url}</p>
+          </div>
+          <picture aria-hidden="true">
+            <source
+              srcset="/static/assets/open-dark.svg"
+              media="(prefers-color-scheme: dark)"
+            />
+            <img
+              class="external-icon"
+              src="/static/assets/open-light.svg"
+              alt=""
+            />
+          </picture>
+        </a>
+      </moz-card>
+    `;
   }
 }
 customElements.define("moz-link", MozLink);
@@ -85,47 +136,114 @@ class MozShare extends MozLitElement {
   static properties = {
     share: { type: Object },
   };
+
   static styles = css`
-    .share {
-      display: flex;
-      gap: var(--space-xxlarge);
-      flex-wrap: wrap;
+    .share-page {
+      width: 100%;
+      padding-block-start: var(--space-xlarge);
     }
 
-    .kit-container {
+    .share-content {
+      box-sizing: border-box;
+      max-width: 964px;
+      min-width: 380px;
+      margin-inline: auto;
+      padding-inline: var(--space-medium);
+    }
+
+    .share-header {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      max-width: 267px;
-
-      #kit {
-        width: 163px;
-        height: 188px;
-        transform: scale(-1, 1);
-        /* filter: grayscale(100%); */
-      }
+      justify-content: space-between;
+      position: relative;
+      margin-block-end: var(--space-xlarge);
     }
 
-    moz-card {
+    .logo {
+      position: absolute;
+      width: 50px;
+      object-fit: contain;
+      transform: translateX(-300%);
+    }
+
+    .share-title {
+      margin-block: 0 var(--space-small);
+      font-weight: var(--font-weight-semibold);
+      font-size: var(--font-size-xlarge);
+      color: var(--text-color);
+    }
+
+    .share-meta {
       display: flex;
-
-      .container {
-        padding-inline: var(--space-xxlarge);
-        margin-inline: var(--space-xxlarge);
-      }
-
-      .link-container {
-        display: grid;
-        gap: var(--space-xxlarge);
-        grid-template-columns: repeat(2, 1fr);
-      }
+      align-items: center;
+      gap: var(--space-small);
+      color: var(--text-color);
     }
 
-    .actions {
+    .link-count {
+      display: flex;
+      align-items: center;
+      gap: var(--space-small);
+    }
+
+    .link-count picture {
+      display: flex;
+    }
+
+    .link-list {
       display: flex;
       flex-direction: column;
+      gap: var(--space-large);
+    }
+
+    .share-footer {
+      align-items: flex-start;
+      border-top: 1px solid var(--border-color-card);
+      display: flex;
+      justify-content: space-between;
+      margin-block-start: var(--size-item-xlarge);
+      padding-block: var(--size-item-large);
+    }
+
+    .disclaimer {
+      align-items: flex-start;
+      display: flex;
       gap: var(--space-small);
+      max-width: 250px;
+    }
+
+    .disclaimer picture {
+      display: flex;
+      flex-shrink: 0;
+    }
+
+    .disclaimer p {
+      font-size: var(--font-size-small);
+      color: var(--text-color-deemphasized);
+      margin: 0;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: var(--space-large);
+      align-items: center;
+      flex: 0.9;
+      justify-content: space-between;
+    }
+
+
+    .footer-link {
+      color: var(--text-color-deemphasized);
+      text-decoration: underline;
+      text-align: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .footer-link:hover {
+      color: var(--text-color);
     }
 
     #report-dialog {
@@ -143,7 +261,57 @@ class MozShare extends MozLitElement {
       display: flex;
       justify-content: flex-end;
       gap: var(--space-small);
-      margin-top: var(--space-large);
+      margin-block-start: var(--space-large);
+    }
+
+    @media (max-width: 1300px) {
+      .share-content {
+        max-width: 720px;
+      }
+
+      .share-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .logo {
+        inset-block-start: 50%;
+        inset-inline-end: 0;
+        transform: translateY(-50%);
+      }
+
+      .header-actions {
+        margin-block-start: var(--space-xlarge);
+      }
+    }
+
+    @media (max-width: 964px) {
+      .logo {
+        width: var(--size-item-large);
+      }
+
+      .share-content {
+        max-width: 100%;
+        padding-inline: var(--size-item-large);
+      }
+
+      .link-list {
+        gap: var(--space-medium);
+      }
+
+      .share-footer {
+        flex-direction: column;
+        gap: var(--space-large);
+      }
+
+      .footer-links {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .footer-link {
+        text-align: start;
+      }
     }
   `;
 
@@ -152,18 +320,20 @@ class MozShare extends MozLitElement {
     reportDialog: "#report-dialog",
   };
 
-  get dateFormatted() {
-    if (!this.share?.created_at) {
+  get expiryText() {
+    if (!this.share?.expires_at) {
       return null;
     }
-
-    let date = new Date(this.share.created_at);
-
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    const expiry = new Date(this.share.expires_at);
+    const now = new Date();
+    const days = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+    if (days <= 0) {
+      return "Expired";
+    }
+    if (days === 1) {
+      return "Expiring today";
+    }
+    return `Expiring in ${days} days`;
   }
 
   connectedCallback() {
@@ -184,17 +354,10 @@ class MozShare extends MozLitElement {
     navigator.clipboard.writeText(location.href);
     this.copyButton.textContent = "Link Copied";
     this.copyButton.iconSrc = "/static/assets/check-filled.svg";
-
     setTimeout(() => {
-      this.copyButton.textContent = "Copy Link";
-      this.copyButton.iconSrc = "";
+      this.copyButton.textContent = "Copy link";
+      this.copyButton.iconSrc = "/static/assets/edit-copy.svg";
     }, 5000);
-  }
-
-  copyButtonTemplate() {
-    return html`<moz-button id="copy-button" @click=${this.copyLink}
-      >Copy Link</moz-button
-    >`;
   }
 
   openReportDialog() {
@@ -205,76 +368,106 @@ class MozShare extends MozLitElement {
     this.reportDialog.close();
   }
 
-  reportDialogTemplate() {
-    return html`<dialog id="report-dialog">
-      <form method="post" action="/report/${this.share.shortcode}">
-        <moz-radio-group
-          label="Why are you reporting this page?"
-          name="reason"
-          value="copyright"
-        >
-          <moz-radio
-            value="copyright"
-            label="Contains copyright protected content"
-          ></moz-radio>
-          <moz-radio
-            value="harmful"
-            label="Contains sexual, violent, or other harmful content"
-          ></moz-radio>
-          <moz-radio value="spam" label="Contains spam or malware"></moz-radio>
-          <moz-radio value="other" label="Other"></moz-radio>
-        </moz-radio-group>
-        <div class="report-actions">
-          <button type="button" @click=${this.cancelReport}>Cancel</button>
-          <button type="submit">Submit</button>
-        </div>
-      </form>
-    </dialog>`;
-  }
-
-  reportButtonTemplate() {
-    return html`<moz-button id="report-button" @click=${this.openReportDialog}
-      >Report unsafe page</moz-button
-    >`;
-  }
-
   render() {
     if (!this.share) {
       return null;
     }
 
-    return html`<div class="share">
-      <div class="kit-container">
-        <img id="kit" src="/static/assets/fxsharing-kit.png" />
-        <h2>Share this link</h2>
-        <p>
-          Send an easy-to-use page with all the links in ${this.share.title} to
-          anyone.
-        </p>
-        <p>
-          <a target="_blank" href="https://www.firefox.com/en-US/landing/get/"
-            >Download Firefox</a
-          >
-          to create your own shared links.
-        </p>
-        <div class="actions">
-          ${this.copyButtonTemplate()}
-          ${this.reportButtonTemplate()}
-        </div>
-      </div>
-      ${this.reportDialogTemplate()}
-      <moz-card
-        ><div class="container">
-          <h1>${this.share.title}</h1>
-          <p>From {email} - ${this.dateFormatted}</p>
-          <div class="link-container">
+    const expiryText = this.expiryText;
+    const linkCount = this.share.links?.length ?? 0;
+
+    return html`
+      <div class="share-page">
+        <div class="share-content">
+          <div class="share-header">
+            <img class="logo" src="/static/assets/logo.svg" alt="" />
+            <div>
+              <h1 class="share-title">${this.share.title}</h1>
+              <div class="share-meta">
+                <span class="link-count">
+                    <picture>
+                      <source
+                        srcset="/static/assets/folder-dark.svg"
+                        media="(prefers-color-scheme: dark)"
+                      />
+                      <img src="/static/assets/folder-light.svg" alt="" />
+                    </picture>
+                    ${linkCount}
+                  </span>
+                ${expiryText
+                  ? html`<span aria-hidden="true">·</span
+                      ><span>${expiryText}</span>`
+                  : ""}
+              </div>
+            </div>
+            <div class="header-actions">
+              <moz-button
+                id="copy-button"
+                iconsrc="/static/assets/edit-copy.svg"
+                @click=${this.copyLink}
+                >Copy link</moz-button
+              >
+            </div>
+          </div>
+          <div class="link-list">
             ${this.share.links.map(
               (link) => html`<moz-link .link=${link}></moz-link>`,
             )}
           </div>
-        </div></moz-card
-      >
-    </div>`;
+
+          <footer class="share-footer">
+            <div class="disclaimer">
+              <picture>
+                <source
+                  srcset="/static/assets/users-dark.svg"
+                  media="(prefers-color-scheme: dark)"
+                />
+                <img src="/static/assets/users-light.svg" alt="" />
+              </picture>
+              <p>
+                Created by a Firefox user. Mozilla does not review or approve
+                these links. Open links only if you trust the sender.
+              </p>
+            </div>
+            <div class="footer-links">
+              <button class="footer-link" @click=${this.openReportDialog}>
+                Report unsafe page
+              </button>
+              <a class="footer-link" href="#">Terms of use</a>
+              <a class="footer-link" href="#">Acceptable use policy</a>
+            </div>
+          </footer>
+        </div>
+
+        <dialog id="report-dialog">
+          <form method="post" action="/report/${this.share.shortcode}">
+            <moz-radio-group
+              label="Why are you reporting this page?"
+              name="reason"
+              value="copyright"
+            >
+              <moz-radio
+                value="copyright"
+                label="Contains copyright protected content"
+              ></moz-radio>
+              <moz-radio
+                value="harmful"
+                label="Contains sexual, violent, or other harmful content"
+              ></moz-radio>
+              <moz-radio
+                value="spam"
+                label="Contains spam or malware"
+              ></moz-radio>
+              <moz-radio value="other" label="Other"></moz-radio>
+            </moz-radio-group>
+            <div class="report-actions">
+              <button type="button" @click=${this.cancelReport}>Cancel</button>
+              <button type="submit">Submit</button>
+            </div>
+          </form>
+        </dialog>
+      </div>
+    `;
   }
 }
 
