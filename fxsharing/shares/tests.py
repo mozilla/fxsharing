@@ -335,6 +335,8 @@ class TestSoftDeleteShare(TestCase):
             data={"reason": "spam"},
         )
         assert response.status_code == 404
+
+
 class TestLandingView(TestCase):
     def test_returns_200(self):
         response = self.client.get(reverse("landing"))
