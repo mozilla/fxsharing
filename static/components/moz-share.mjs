@@ -166,7 +166,7 @@ class MozShare extends MozLitElement {
       flex: 1;
       flex-direction: column;
       max-width: 964px;
-      min-width: min(380px, 100%);
+      min-width: 380px;
       margin-inline: auto;
       padding-inline: var(--space-medium);
     }
@@ -274,6 +274,7 @@ class MozShare extends MozLitElement {
 
     .footer-link {
       color: var(--text-color-deemphasized);
+      font: inherit;
       text-decoration: underline;
       text-align: center;
       background: none;
