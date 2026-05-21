@@ -335,6 +335,28 @@ class TestSoftDeleteShare(TestCase):
             data={"reason": "spam"},
         )
         assert response.status_code == 404
+class TestLandingView(TestCase):
+    def test_returns_200(self):
+        response = self.client.get(reverse("landing"))
+        assert response.status_code == 200
+
+    def test_non_firefox_ua_shows_cta(self):
+        response = self.client.get(
+            reverse("landing"),
+            HTTP_USER_AGENT="Chrome/109.0",
+        )
+        assert response.context["show_firefox_cta"] is True
+
+    def test_firefox_ua_hides_cta(self):
+        response = self.client.get(
+            reverse("landing"),
+            HTTP_USER_AGENT="Mozilla/5.0 Gecko/20100101 Firefox/109.0",
+        )
+        assert response.context["show_firefox_cta"] is False
+
+    def test_missing_ua_shows_cta(self):
+        response = self.client.get(reverse("landing"))
+        assert response.context["show_firefox_cta"] is True
 
 
 class TestDockerflowEndpoints(TestCase):

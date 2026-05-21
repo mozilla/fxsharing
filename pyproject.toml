@@ -46,6 +46,8 @@ select = [
     "UP", # pyupgrade
     "W",  # pycodestyle warnings
 ]
+# E501 (line too long) is enforced by ruff format, not ruff check
+ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 section-order = [

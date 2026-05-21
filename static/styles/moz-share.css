@@ -5,12 +5,18 @@ body {
 }
 
 body {
-  background-image: url("/static/assets/fxsharing-background.png");
+  background-image: url("/static/assets/background-light.png");
   background-size: contain;
   /* filter: grayscale(100%); */
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image: url("/static/assets/background-dark.png");
+  }
 }
 
 .share-wrapper {
