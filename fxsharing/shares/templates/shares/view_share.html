@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ share_data.title }}</title>
+    <meta property="og:title" content="{{ share_data.title }}" />
+    <meta property="og:description" content="A collection of links shared via Firefox" />
+    <meta property="og:type" content="website" />
     {% load static %}
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
     <link rel="stylesheet" href="{% static 'styles/moz-share.css' %}" />

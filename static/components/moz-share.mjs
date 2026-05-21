@@ -54,11 +54,19 @@ class MozLink extends MozLitElement {
     }
 
     .link-title {
-      margin-block: 0 var(--space-small);
+      font-size: var(--font-size-small);
+      margin-block: 0 var(--space-xsmall);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .link-url {
+      font-size: var(--font-size-xsmall);
       margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     @media (max-width: 964px) {
@@ -138,15 +146,27 @@ class MozShare extends MozLitElement {
   };
 
   static styles = css`
+    :host {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
     .share-page {
-      width: 100%;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
       padding-block-start: var(--space-xlarge);
+      width: 100%;
     }
 
     .share-content {
       box-sizing: border-box;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
       max-width: 964px;
-      min-width: 380px;
+      min-width: min(380px, 100%);
       margin-inline: auto;
       padding-inline: var(--space-medium);
     }
@@ -159,6 +179,10 @@ class MozShare extends MozLitElement {
       margin-block-end: var(--space-xlarge);
     }
 
+    .header-actions {
+      flex-shrink: 0;
+    }
+
     .logo {
       position: absolute;
       width: 50px;
@@ -166,11 +190,28 @@ class MozShare extends MozLitElement {
       transform: translateX(-300%);
     }
 
+    .share-header-left {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .share-title-block {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
     .share-title {
       margin-block: 0 var(--space-small);
       font-weight: var(--font-weight-semibold);
       font-size: var(--font-size-xlarge);
       color: var(--text-color);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .share-meta {
@@ -201,7 +242,7 @@ class MozShare extends MozLitElement {
       border-top: 1px solid var(--border-color-card);
       display: flex;
       justify-content: space-between;
-      margin-block-start: var(--size-item-xlarge);
+      margin-block-start: auto;
       padding-block: var(--size-item-large);
     }
 
@@ -231,7 +272,6 @@ class MozShare extends MozLitElement {
       justify-content: space-between;
     }
 
-
     .footer-link {
       color: var(--text-color-deemphasized);
       text-decoration: underline;
@@ -254,7 +294,7 @@ class MozShare extends MozLitElement {
     }
 
     #report-dialog::backdrop {
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: var(--background-color-overlay);
     }
 
     .report-actions {
@@ -270,18 +310,26 @@ class MozShare extends MozLitElement {
       }
 
       .share-header {
-        flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
       }
 
-      .logo {
-        inset-block-start: 50%;
-        inset-inline-end: 0;
-        transform: translateY(-50%);
+      .share-header-left {
+        flex-direction: column;
+        align-items: stretch;
+        overflow: hidden;
       }
 
       .header-actions {
-        margin-block-start: var(--space-xlarge);
+        margin-block-start: var(--space-medium);
+      }
+
+      .logo {
+        order: 1;
+        margin-inline-start: var(--space-small);
+        position: static;
+        transform: none;
+        object-position: center;
+        align-self: stretch;
       }
     }
 
@@ -299,18 +347,9 @@ class MozShare extends MozLitElement {
         gap: var(--space-medium);
       }
 
-      .share-footer {
-        flex-direction: column;
-        gap: var(--space-large);
-      }
-
       .footer-links {
         flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .footer-link {
-        text-align: start;
+        align-items: flex-end;
       }
     }
   `;
@@ -381,32 +420,34 @@ class MozShare extends MozLitElement {
         <div class="share-content">
           <div class="share-header">
             <img class="logo" src="/static/assets/logo.svg" alt="" />
-            <div>
-              <h1 class="share-title">${this.share.title}</h1>
-              <div class="share-meta">
-                <span class="link-count">
-                    <picture>
-                      <source
-                        srcset="/static/assets/folder-dark.svg"
-                        media="(prefers-color-scheme: dark)"
-                      />
-                      <img src="/static/assets/folder-light.svg" alt="" />
-                    </picture>
-                    ${linkCount}
-                  </span>
-                ${expiryText
-                  ? html`<span aria-hidden="true">·</span
-                      ><span>${expiryText}</span>`
-                  : ""}
+            <div class="share-header-left">
+              <div class="share-title-block">
+                <h1 class="share-title">${this.share.title}</h1>
+                <div class="share-meta">
+                  <span class="link-count">
+                      <picture>
+                        <source
+                          srcset="/static/assets/folder-dark.svg"
+                          media="(prefers-color-scheme: dark)"
+                        />
+                        <img src="/static/assets/folder-light.svg" alt="" />
+                      </picture>
+                      ${linkCount}
+                    </span>
+                  ${expiryText
+                    ? html`<span aria-hidden="true">·</span
+                        ><span>${expiryText}</span>`
+                    : ""}
+                </div>
               </div>
-            </div>
-            <div class="header-actions">
-              <moz-button
-                id="copy-button"
-                iconsrc="/static/assets/edit-copy.svg"
-                @click=${this.copyLink}
-                >Copy link</moz-button
-              >
+              <div class="header-actions">
+                <moz-button
+                  id="copy-button"
+                  iconsrc="/static/assets/edit-copy.svg"
+                  @click=${this.copyLink}
+                  >Copy link</moz-button
+                >
+              </div>
             </div>
           </div>
           <div class="link-list">
@@ -433,8 +474,8 @@ class MozShare extends MozLitElement {
               <button class="footer-link" @click=${this.openReportDialog}>
                 Report unsafe page
               </button>
-              <a class="footer-link" href="#">Terms of use</a>
-              <a class="footer-link" href="#">Acceptable use policy</a>
+              <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/terms/services/">Terms of use</a>
+              <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/acceptable-use/">Acceptable use policy</a>
             </div>
           </footer>
         </div>
