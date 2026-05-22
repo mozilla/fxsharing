@@ -57,7 +57,9 @@ class TestSoftDeleteUser(TestCase):
         user = User.objects.create_user(fxa_id="softdel2")
         share = Share.objects.create(title="S", user=user)
         link = Link.objects.create(share=share, url="https://example.com")
-        user.delete()
+        count, by_label = user.delete()
+        assert count == 2
+        assert by_label == {"users.User": 1, "shares.Share": 1}
         assert not Share.objects.filter(pk=share.pk).exists()
         assert not Link.objects.filter(pk=link.pk).exists()
         assert Share.all_objects.get(pk=share.pk).deleted_at is not None

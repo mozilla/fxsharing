@@ -8,7 +8,7 @@ from django.contrib.auth.models import (
 from django.db import models
 from django.utils import timezone
 
-from fxsharing.shares.models import SoftDeleteQuerySet
+from fxsharing.soft_delete import SoftDeleteQuerySet
 
 
 class UserManager(BaseUserManager.from_queryset(SoftDeleteQuerySet)):
@@ -53,4 +53,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         # LinkManager). Already-deleted shares are untouched.
         self.deleted_at = timezone.now()
         self.save(update_fields=["deleted_at"])
-        self.shares.all().delete()
+        shares_count, shares_by_label = self.shares.all().delete()
+        result = {self._meta.label: 1}
+        for k, v in shares_by_label.items():
+            result[k] = result.get(k, 0) + v
+        return 1 + shares_count, result

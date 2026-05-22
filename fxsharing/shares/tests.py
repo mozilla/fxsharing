@@ -291,10 +291,19 @@ class TestSoftDeleteShare(TestCase):
 
     def test_delete_sets_deleted_at_and_hides_from_default_manager(self):
         share = Share.objects.create(title="Soft", user=self.user)
-        share.delete()
+        count, by_label = share.delete()
+        assert count == 1
+        assert by_label == {"shares.Share": 1}
         assert not Share.objects.filter(pk=share.pk).exists()
         assert Share.all_objects.filter(pk=share.pk).exists()
         assert Share.all_objects.get(pk=share.pk).deleted_at is not None
+
+    def test_queryset_delete_returns_count_tuple(self):
+        Share.objects.create(title="A", user=self.user)
+        Share.objects.create(title="B", user=self.user)
+        count, by_label = Share.objects.filter(user=self.user).delete()
+        assert count == 2
+        assert by_label == {"shares.Share": 2}
 
     def test_links_hidden_when_share_soft_deleted(self):
         share = Share.objects.create(title="Soft", user=self.user)
@@ -316,7 +325,9 @@ class TestSoftDeleteShare(TestCase):
         nested = Share.objects.create(
             title="Nested", user=self.user, parent_share=parent
         )
-        parent.delete()
+        count, by_label = parent.delete()
+        assert count == 2
+        assert by_label == {"shares.Share": 2}
         assert not Share.objects.filter(pk=nested.pk).exists()
         assert Share.all_objects.get(pk=nested.pk).deleted_at is not None
 

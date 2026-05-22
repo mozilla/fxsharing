@@ -6,6 +6,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from fxsharing.soft_delete import SoftDeleteQuerySet
+
 SHORTCODE_CHARS = string.ascii_letters + string.digits
 
 
@@ -26,11 +28,6 @@ class SafetyStatus(models.TextChoices):
     UNKNOWN = "unknown", "Unknown"
     SAFE = "safe", "Safe"
     UNSAFE = "unsafe", "Unsafe"
-
-
-class SoftDeleteQuerySet(models.QuerySet):
-    def delete(self):
-        return self.update(deleted_at=timezone.now())
 
 
 class SoftDeleteManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
@@ -73,12 +70,17 @@ class Share(models.Model):
         return self.title
 
     def delete(self, *args, **kwargs):
-        # Soft-delete only. There is no hard-delete path on this model.
+        # Soft-delete only. There is no hard-delete.
         # Nested shares cascade through this same delete(); links inherit
         # visibility via LinkManager filtering on share__deleted_at.
         self.deleted_at = timezone.now()
         self.save(update_fields=["deleted_at"])
-        self.nested_shares.all().delete()
+        nested_count, nested_by_label = self.nested_shares.all().delete()
+        label = self._meta.label
+        result = {label: 1}
+        for k, v in nested_by_label.items():
+            result[k] = result.get(k, 0) + v
+        return 1 + nested_count, result
 
     def to_dict(self, this_only=False):
         this = dict(
