@@ -284,6 +284,70 @@ class TestReportShare(TestCase):
         assert response.status_code == 400
 
 
+class TestSoftDeleteShare(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6softdel")
+
+    def test_delete_sets_deleted_at_and_hides_from_default_manager(self):
+        share = Share.objects.create(title="Soft", user=self.user)
+        count, by_label = share.delete()
+        assert count == 1
+        assert by_label == {"shares.Share": 1}
+        assert not Share.objects.filter(pk=share.pk).exists()
+        assert Share.all_objects.filter(pk=share.pk).exists()
+        assert Share.all_objects.get(pk=share.pk).deleted_at is not None
+
+    def test_queryset_delete_returns_count_tuple(self):
+        Share.objects.create(title="A", user=self.user)
+        Share.objects.create(title="B", user=self.user)
+        count, by_label = Share.objects.filter(user=self.user).delete()
+        assert count == 2
+        assert by_label == {"shares.Share": 2}
+
+    def test_links_hidden_when_share_soft_deleted(self):
+        share = Share.objects.create(title="Soft", user=self.user)
+        link = Link.objects.create(share=share, url="https://example.com")
+        share.delete()
+        assert not Link.objects.filter(pk=link.pk).exists()
+        assert Link.all_objects.filter(pk=link.pk).exists()
+
+    def test_bulk_queryset_delete_is_soft(self):
+        Share.objects.create(title="A", user=self.user)
+        Share.objects.create(title="B", user=self.user)
+        Share.objects.filter(user=self.user).delete()
+        assert Share.objects.count() == 0
+        assert Share.all_objects.count() == 2
+        assert all(s.deleted_at is not None for s in Share.all_objects.all())
+
+    def test_nested_shares_cascade_on_soft_delete(self):
+        parent = Share.objects.create(title="Parent", user=self.user)
+        nested = Share.objects.create(
+            title="Nested", user=self.user, parent_share=parent
+        )
+        count, by_label = parent.delete()
+        assert count == 2
+        assert by_label == {"shares.Share": 2}
+        assert not Share.objects.filter(pk=nested.pk).exists()
+        assert Share.all_objects.get(pk=nested.pk).deleted_at is not None
+
+    def test_view_share_404s_when_soft_deleted(self):
+        share = Share.objects.create(title="Soft", user=self.user)
+        share.delete()
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 404
+
+    def test_report_share_404s_when_soft_deleted(self):
+        self.client.force_login(self.user)
+        share = Share.objects.create(title="Soft", user=self.user)
+        share.delete()
+        response = self.client.post(
+            reverse("report_share", args=[share.shortcode]),
+            data={"reason": "spam"},
+        )
+        assert response.status_code == 404
+
+
 class TestLandingView(TestCase):
     def test_returns_200(self):
         response = self.client.get(reverse("landing"))
