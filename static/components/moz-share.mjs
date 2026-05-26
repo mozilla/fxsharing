@@ -223,6 +223,13 @@ class MozShare extends MozLitElement {
       width: 100%;
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      .skeleton-bar,
+      .skeleton-favicon {
+        animation: none;
+      }
+    }
+
     :host {
       color: var(--text-color);
       display: flex;
