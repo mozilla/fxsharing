@@ -74,6 +74,11 @@ def create_share_from_data(data, user, parent_share=None, idempotency_key=None):
 @csrf_protect
 def create_share(request):
     if not request.user.is_authenticated:
+        try:
+            data = json.loads(request.body)
+            request.session["pending_link_count"] = len(data.get("links", []))
+        except (json.JSONDecodeError, TypeError):
+            pass
         return HttpResponse(status=401)
 
     try:
@@ -128,7 +133,8 @@ def report_share(request, shortcode):
 
 
 def auth_complete(request):
-    return render(request, "shares/view_auth_complete.html")
+    link_count = request.session.pop("pending_link_count", 8)
+    return render(request, "shares/view_auth_complete.html", {"link_count": link_count})
 
 
 def landing(request):

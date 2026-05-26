@@ -144,6 +144,7 @@ class MozShare extends MozLitElement {
   static properties = {
     share: { type: Object },
     loading: { type: Boolean },
+    count: { type: Number },
   };
 
   static styles = css`
@@ -512,7 +513,7 @@ class MozShare extends MozLitElement {
   }
 
   renderSkeleton() {
-    const skeletonItems = Array.from({ length: 8 });
+    const skeletonItems = Array.from({ length: this.count || 8 });
     return html`
       <div class="share-page">
         <div class="share-content">
