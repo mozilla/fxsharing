@@ -153,8 +153,8 @@ class MozShare extends MozLitElement {
       100% { background-position: -200% 0; }
     }
 
-    .skeleton-bar {
-      border-radius: var(--border-radius-circle);
+    .skeleton-bar,
+    .skeleton-favicon {
       background: linear-gradient(
         90deg,
         var(--button-background-color) 0%,
@@ -165,6 +165,10 @@ class MozShare extends MozLitElement {
       );
       background-size: 300% 100%;
       animation: skeleton-shimmer 3.5s linear infinite;
+    }
+
+    .skeleton-bar {
+      border-radius: var(--border-radius-circle);
     }
 
     .skeleton-title {
@@ -193,17 +197,7 @@ class MozShare extends MozLitElement {
       width: 40px;
       height: 40px;
       border-radius: var(--border-radius-small);
-      background: linear-gradient(
-        90deg,
-        var(--button-background-color) 0%,
-        var(--button-background-color) 30%,
-        var(--button-background-color-hover) 50%,
-        var(--button-background-color) 70%,
-        var(--button-background-color) 100%
-      );
-      background-size: 300% 100%;
       flex-shrink: 0;
-      animation: skeleton-shimmer 3.5s linear infinite;
     }
 
     .skeleton-text {
@@ -504,7 +498,7 @@ class MozShare extends MozLitElement {
         <button
           class="footer-link"
           ?disabled=${loading}
-          @click=${loading ? null : this.openReportDialog}
+          @click=${this.openReportDialog}
         >Report unsafe page</button>
         <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/terms/services/">Terms of use</a>
         <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/acceptable-use/">Acceptable use policy</a>

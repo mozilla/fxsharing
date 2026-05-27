@@ -76,7 +76,9 @@ def create_share(request):
     if not request.user.is_authenticated:
         try:
             data = json.loads(request.body)
-            request.session["pending_link_count"] = len(data.get("links", []))
+            link_count = len(data.get("links", []))
+            if link_count:
+                request.session["pending_link_count"] = link_count
         except (json.JSONDecodeError, TypeError):
             pass
         return HttpResponse(status=401)
