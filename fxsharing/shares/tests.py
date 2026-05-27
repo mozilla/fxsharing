@@ -1,10 +1,12 @@
 import json
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from allauth.account.signals import user_logged_in, user_logged_out
 
@@ -297,6 +299,37 @@ class TestViewShare(TestCase):
 
     def test_returns_200(self):
         share = Share.objects.create(title="Test Share", user=self.user)
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 200
+
+    def test_unavailable_status_returns_410(self):
+        for status in [ShareStatus.EXPIRED, ShareStatus.BLOCKED]:
+            with self.subTest(status=status):
+                share = Share.objects.create(
+                    title="Share", user=self.user, status=status
+                )
+                response = self.client.get(
+                    reverse("view_share", args=[share.shortcode])
+                )
+                assert response.status_code == 410
+                assert b"aren't available" in response.content
+
+    def test_past_expires_at_returns_410(self):
+        share = Share.objects.create(
+            title="Timed-out Share",
+            user=self.user,
+            expires_at=timezone.now() - timedelta(seconds=1),
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 410
+        assert b"aren't available" in response.content
+
+    def test_future_expires_at_returns_200(self):
+        share = Share.objects.create(
+            title="Active Share",
+            user=self.user,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
         response = self.client.get(reverse("view_share", args=[share.shortcode]))
         assert response.status_code == 200
 

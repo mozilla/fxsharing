@@ -1,0 +1,47 @@
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background-image: url("/static/assets/background-light.png");
+  background-size: cover;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image: url("/static/assets/background-dark.png");
+  }
+}
+
+.site-header {
+  padding: var(--space-medium);
+  flex-shrink: 0;
+}
+
+.site-logo {
+  width: 48px;
+  height: 48px;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* hide the card if it's not defined yet to prevent it from flashing on load */
+moz-card:not(:defined) {
+  visibility: hidden;
+}
+
+moz-card {
+  --card-box-shadow: none;
+  --card-border: none;
+  --card-border-radius: 24px;
+
+  &::part(moz-card),
+  &::part(content) {
+    padding: 0;
+  }
+}
