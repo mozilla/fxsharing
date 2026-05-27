@@ -1,14 +1,3 @@
-body {
-  background-image: url("/static/assets/background-light.png");
-  background-size: contain;
-  background-attachment: fixed;
-}
-
-@media (prefers-color-scheme: dark) {
-  body {
-    background-image: url("/static/assets/background-dark.png");
-  }
-}
 
 moz-message-bar {
   position: absolute;

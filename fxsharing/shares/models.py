@@ -66,6 +66,12 @@ class Share(models.Model):
     objects = SoftDeleteManager()
     all_objects = models.Manager.from_queryset(SoftDeleteQuerySet)()
 
+    @property
+    def is_expired(self):
+        if self.status in (ShareStatus.EXPIRED, ShareStatus.BLOCKED):
+            return True
+        return self.expires_at is not None and self.expires_at <= timezone.now()
+
     def __str__(self):
         return self.title
 

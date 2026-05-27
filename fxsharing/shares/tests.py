@@ -2,6 +2,7 @@ import importlib
 import json
 from io import StringIO
 from unittest.mock import MagicMock
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
@@ -10,6 +11,7 @@ from django.core.management.base import CommandError
 from django.http import Http404, HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import clear_url_caches, reverse
+from django.utils import timezone
 
 from allauth.account.signals import user_logged_in, user_logged_out
 from celery import shared_task
@@ -319,6 +321,37 @@ class TestViewShare(TestCase):
         response = self.client.get(reverse("view_share", args=[share.shortcode]))
         assert response.status_code == 200
 
+    def test_unavailable_status_returns_410(self):
+        for status in [ShareStatus.EXPIRED, ShareStatus.BLOCKED]:
+            with self.subTest(status=status):
+                share = Share.objects.create(
+                    title="Share", user=self.user, status=status
+                )
+                response = self.client.get(
+                    reverse("view_share", args=[share.shortcode])
+                )
+                assert response.status_code == 410
+                assert b"aren't available" in response.content
+
+    def test_past_expires_at_returns_410(self):
+        share = Share.objects.create(
+            title="Timed-out Share",
+            user=self.user,
+            expires_at=timezone.now() - timedelta(seconds=1),
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 410
+        assert b"aren't available" in response.content
+
+    def test_future_expires_at_returns_200(self):
+        share = Share.objects.create(
+            title="Active Share",
+            user=self.user,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 200
+
 
 class TestReportShare(TestCase):
     @classmethod
@@ -435,6 +468,13 @@ class TestLandingView(TestCase):
         response = self.client.get(
             reverse("landing"),
             HTTP_USER_AGENT="Mozilla/5.0 Gecko/20100101 Firefox/109.0",
+        )
+        assert response.context["show_firefox_cta"] is False
+
+    def test_firefox_ios_ua_hides_cta(self):
+        response = self.client.get(
+            reverse("landing"),
+            HTTP_USER_AGENT="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/136.0 Mobile/15E148 Safari/604.1",
         )
         assert response.context["show_firefox_cta"] is False
 
