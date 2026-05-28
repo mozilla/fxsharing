@@ -14,13 +14,35 @@ body {
 }
 
 .site-header {
-  padding: var(--space-medium);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-large);
+  padding: var(--space-xxlarge) var(--space-medium);
+  max-width: 964px;
+  margin-inline: auto;
+  width: 100%;
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 
 .site-logo {
-  width: 48px;
-  height: 48px;
+  position: absolute;
+  width: 50px;
+  transform: translateX(-300%);
+}
+
+@media (max-width: 1300px) {
+  .site-header {
+    max-width: 720px;
+  }
+
+  .site-logo {
+    position: static;
+    transform: none;
+    order: 2;
+    flex-shrink: 0;
+  }
 }
 
 main {
@@ -33,6 +55,42 @@ main {
 /* hide the card if it's not defined yet to prevent it from flashing on load */
 moz-card:not(:defined) {
   visibility: hidden;
+}
+
+/* borrowed styles from moz-button.mjs since the CTA is an a element */
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  margin-block-start: var(--space-large);
+  min-height: var(--button-min-height);
+  padding: var(--button-padding);
+  border: var(--button-border);
+  border-radius: var(--button-border-radius);
+  background-color: var(--button-background-color-primary);
+  border-color: var(--button-border-color-primary);
+  color: var(--button-text-color-primary);
+  font-weight: var(--button-font-weight);
+  font-size: var(--button-font-size);
+  text-decoration: none;
+
+  &:hover {
+    background-color: var(--button-background-color-primary-hover);
+    border-color: var(--button-border-color-primary-hover);
+    color: var(--button-text-color-primary-hover);
+  }
+
+  &:hover:active {
+    background-color: var(--button-background-color-primary-active);
+    border-color: var(--button-border-color-primary-active);
+    color: var(--button-text-color-primary-active);
+  }
+
+  &:focus-visible {
+    outline: var(--focus-outline);
+    outline-offset: var(--focus-outline-offset);
+  }
 }
 
 moz-card {

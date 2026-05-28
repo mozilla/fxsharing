@@ -1,11 +1,11 @@
-
 .expired-callout {
   display: flex;
   align-items: center;
-  gap: var(--space-xlarge);
-  padding: var(--space-xlarge);
+  gap: 40px;
+  padding: 80px;
   color: var(--text-color);
-  max-width: 775px;
+  max-width: 700px;
+  box-sizing: border-box;
 }
 
 .expired-callout-image {
@@ -22,10 +22,9 @@
 }
 
 .expired-callout-copy h1 {
-  margin: 0;
+  margin-block: 0 var(--space-xlarge);
   font-size: var(--heading-font-size-large);
   font-weight: var(--heading-font-weight);
-  line-height: 1.2;
 }
 
 .expired-callout-copy p {
