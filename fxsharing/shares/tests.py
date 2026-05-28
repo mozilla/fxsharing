@@ -1,4 +1,5 @@
 import json
+from unittest.mock import MagicMock
 
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
@@ -7,11 +8,24 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from allauth.account.signals import user_logged_in, user_logged_out
+from celery import shared_task
 
 from fxsharing.shares.middleware import OAuthLoginCompleteCookieMiddleware
-from fxsharing.shares.models import Link, SafetyStatus, Share, ShareStatus
+from fxsharing.shares.models import (
+    DeadLetterTask,
+    Link,
+    SafetyStatus,
+    Share,
+    ShareStatus,
+)
+from fxsharing.shares.tasks import BaseTaskWithRetry
 
 User = get_user_model()
+
+
+@shared_task(base=BaseTaskWithRetry, max_retries=0, retry_backoff=False)
+def _always_failing_task(value):
+    raise ValueError(f"boom: {value}")
 
 
 class TestShareModel(TestCase):
@@ -472,3 +486,72 @@ class TestOAuthLoginCompleteCookie(TestCase):
         cookie = response.cookies["auth"]
         assert cookie.value == ""
         assert cookie["max-age"] == 0
+
+
+class TestDeadLetterTaskModel(TestCase):
+    def test_str(self):
+        dlq = DeadLetterTask.objects.create(
+            task_name="foo.bar",
+            task_id="abc-123",
+            exception_class="ValueError",
+        )
+        assert str(dlq) == "foo.bar (abc-123)"
+
+    def test_defaults(self):
+        dlq = DeadLetterTask.objects.create(
+            task_name="foo.bar",
+            task_id="abc-123",
+            exception_class="ValueError",
+        )
+        assert dlq.args == []
+        assert dlq.kwargs == {}
+        assert dlq.queue == ""
+        assert dlq.traceback == ""
+
+
+class TestBaseTaskWithRetry(TestCase):
+    def test_on_failure_creates_dlq_row(self):
+        task = _always_failing_task
+        einfo = MagicMock()
+        einfo.traceback = "Traceback (most recent call last):\n  ...\nValueError: boom"
+
+        task.on_failure(
+            exc=ValueError("boom"),
+            task_id="task-xyz",
+            args=("hi",),
+            kwargs={"k": "v"},
+            einfo=einfo,
+        )
+
+        dlq = DeadLetterTask.objects.get(task_id="task-xyz")
+        assert dlq.task_name == _always_failing_task.name
+        assert dlq.exception_class == "ValueError"
+        assert dlq.exception_message == "boom"
+        assert dlq.args == ["hi"]
+        assert dlq.kwargs == {"k": "v"}
+        assert "ValueError: boom" in dlq.traceback
+
+    def test_on_retry_logs(self):
+        task = _always_failing_task
+        with self.assertLogs("fxsharing.shares.tasks", level="WARNING") as cm:
+            task.on_retry(
+                exc=ValueError("boom"),
+                task_id="task-xyz",
+                args=("hi",),
+                kwargs={},
+                einfo=None,
+            )
+
+        assert any("celery task retry" in msg for msg in cm.output)
+        assert any(_always_failing_task.name in msg for msg in cm.output)
+
+    def test_failing_task_apply_creates_dlq_row(self):
+        # .apply() runs synchronously and exercises the full task lifecycle
+        # (autoretry_for -> on_failure -> DLQ) without touching the result
+        # backend.
+        result = _always_failing_task.apply(args=("payload",))
+        assert result.failed()
+
+        dlq = DeadLetterTask.objects.get(task_name=_always_failing_task.name)
+        assert dlq.exception_class == "ValueError"
+        assert dlq.args == ["payload"]

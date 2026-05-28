@@ -37,4 +37,4 @@ Single Django project (`fxsharing/`) with one app:
 
 URL routing: `fxsharing/urls.py` includes `fxsharing/shares/urls.py` at the root path, plus Django admin at `/admin/`.
 
-Database: SQLite3 for development.
+Database: PostgreSQL for development.
