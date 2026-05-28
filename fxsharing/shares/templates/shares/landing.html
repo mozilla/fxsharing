@@ -1,32 +1,30 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Firefox Sharing</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
-    <link rel="stylesheet" href="{% static 'styles/landing.css' %}" />
-    <script src="{% static 'components/moz-card/moz-card.mjs' %}" type="module"></script>
-  </head>
+{% extends "shares/base.html" %}
+{% load static %}
 
-  <body>
-    <main>
-      <moz-card>
-        <div class="callout">
-          <picture>
-            <source media="(prefers-color-scheme: dark)" srcset="{% static 'assets/kit-landing-dark.svg' %}" />
-            <img class="callout-image" src="{% static 'assets/kit-landing-light.svg' %}" alt="" />
-          </picture>
-          <div class="callout-copy">
-            <h1>Share tabs in a snap</h1>
-            <p>Create an easy-to-share page of bookmarks you can send to anyone.</p>
-            {% if show_firefox_cta %}
-              <a class="cta-button" href="https://www.mozilla.org/firefox/">Try Firefox</a>
-            {% endif %}
-          </div>
-        </div>
-      </moz-card>
-    </main>
-  </body>
-</html>
+{% block title %}Firefox Sharing{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'styles/landing.css' %}" />
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'components/moz-card/moz-card.mjs' %}" type="module"></script>
+{% endblock %}
+
+{% block content %}
+  <moz-card>
+    <div class="callout">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="{% static 'assets/kit-landing-dark.svg' %}" />
+        <img class="callout-image" src="{% static 'assets/kit-landing-light.svg' %}" alt="" />
+      </picture>
+      <div class="callout-copy">
+        <h1>Share tabs in a snap</h1>
+        <p>Create an easy-to-share page of bookmarks you can send to anyone.</p>
+        {% if not is_firefox %}
+          <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
+        {% endif %}
+      </div>
+    </div>
+  </moz-card>
+{% endblock %}

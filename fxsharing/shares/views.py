@@ -35,7 +35,21 @@ def shares(request):
 
 def view_share(request, shortcode):
     share = get_object_or_404(Share, shortcode=shortcode)
-    return render(request, "shares/view_share.html", {"share_data": share.to_dict()})
+
+    if share.is_expired or share.status == ShareStatus.BLOCKED:
+        return render(request, "shares/view_expired.html", status=410)
+
+    share_data = share.to_dict()
+    return render(
+        request,
+        "shares/view_share.html",
+        {
+            "share_data": share_data,
+            "share_title": share.title,
+            "link_count": len(share_data["links"]),
+            "expiry_text": share.expiry_text,
+        },
+    )
 
 
 SHARE_EXPIRY_DAYS = 7
@@ -140,6 +154,4 @@ def auth_complete(request):
 
 
 def landing(request):
-    ua = request.META.get("HTTP_USER_AGENT", "")
-    is_firefox = "Firefox/" in ua
-    return render(request, "shares/landing.html", {"show_firefox_cta": not is_firefox})
+    return render(request, "shares/landing.html")
