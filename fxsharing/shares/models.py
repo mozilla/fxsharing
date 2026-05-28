@@ -1,3 +1,4 @@
+import math
 import secrets
 import string
 import uuid
@@ -68,9 +69,20 @@ class Share(models.Model):
 
     @property
     def is_expired(self):
-        if self.status in (ShareStatus.EXPIRED, ShareStatus.BLOCKED):
+        if self.status == ShareStatus.EXPIRED:
             return True
         return self.expires_at is not None and self.expires_at <= timezone.now()
+
+    @property
+    def expiry_text(self):
+        if not self.expires_at:
+            return None
+        days = math.ceil((self.expires_at - timezone.now()).total_seconds() / 86400)
+        if days <= 0:
+            return "Expired"
+        if days == 1:
+            return "Expiring today"
+        return f"Expiring in {days} days"
 
     def __str__(self):
         return self.title

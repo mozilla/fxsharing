@@ -321,17 +321,21 @@ class TestViewShare(TestCase):
         response = self.client.get(reverse("view_share", args=[share.shortcode]))
         assert response.status_code == 200
 
-    def test_unavailable_status_returns_410(self):
-        for status in [ShareStatus.EXPIRED, ShareStatus.BLOCKED]:
-            with self.subTest(status=status):
-                share = Share.objects.create(
-                    title="Share", user=self.user, status=status
-                )
-                response = self.client.get(
-                    reverse("view_share", args=[share.shortcode])
-                )
-                assert response.status_code == 410
-                assert b"aren't available" in response.content
+    def test_expired_status_returns_410(self):
+        share = Share.objects.create(
+            title="Share", user=self.user, status=ShareStatus.EXPIRED
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 410
+        assert b"aren't available" in response.content
+
+    def test_blocked_status_returns_410(self):
+        share = Share.objects.create(
+            title="Share", user=self.user, status=ShareStatus.BLOCKED
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 410
+        assert b"aren't available" in response.content
 
     def test_past_expires_at_returns_410(self):
         share = Share.objects.create(
@@ -462,14 +466,14 @@ class TestLandingView(TestCase):
             reverse("landing"),
             HTTP_USER_AGENT="Chrome/109.0",
         )
-        assert response.context["show_firefox_cta"] is True
+        assert response.context["is_firefox"] is False
 
     def test_firefox_ua_hides_cta(self):
         response = self.client.get(
             reverse("landing"),
             HTTP_USER_AGENT="Mozilla/5.0 Gecko/20100101 Firefox/109.0",
         )
-        assert response.context["show_firefox_cta"] is False
+        assert response.context["is_firefox"] is True
 
     def test_firefox_ios_ua_hides_cta(self):
         response = self.client.get(
@@ -480,7 +484,7 @@ class TestLandingView(TestCase):
 
     def test_missing_ua_shows_cta(self):
         response = self.client.get(reverse("landing"))
-        assert response.context["show_firefox_cta"] is True
+        assert response.context["is_firefox"] is False
 
 
 class TestDockerflowEndpoints(TestCase):

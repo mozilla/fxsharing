@@ -21,8 +21,8 @@
       <div class="callout-copy">
         <h1>Share tabs in a snap</h1>
         <p>Create an easy-to-share page of bookmarks you can send to anyone.</p>
-        {% if show_firefox_cta %}
-          <a class="cta-button" href="https://www.mozilla.org/firefox/">Try Firefox</a>
+        {% if not is_firefox %}
+          <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
         {% endif %}
       </div>
     </div>
