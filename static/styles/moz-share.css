@@ -1,12 +1,57 @@
-body {
-  background-image: url("/static/assets/background-light.png");
-  background-size: contain;
-  background-attachment: fixed;
+.share-header-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background-image: url("/static/assets/background-dark.png");
+.share-title-block {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.share-title {
+  margin-block: 0 var(--space-small);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-xlarge);
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-small);
+  color: var(--text-color);
+}
+
+.link-count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-small);
+}
+
+.link-count picture {
+  display: flex;
+}
+
+.header-actions {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1300px) {
+  .share-header-left {
+    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .header-actions {
+    margin-block-start: var(--space-medium);
   }
 }
 

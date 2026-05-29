@@ -1,22 +1,43 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ share_data.title }}</title>
-    <meta property="og:title" content="{{ share_data.title }}" />
-    <meta property="og:description" content="A collection of links shared via Firefox" />
-    <meta property="og:type" content="website" />
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
-    <link rel="stylesheet" href="{% static 'styles/moz-share.css' %}" />
-    <script src="{% static 'components/moz-share.mjs' %}" type="module"></script>
-  </head>
+{% extends "shares/base.html" %}
+{% load static %}
 
-  <body>
-    <main class="share-wrapper">
-      <moz-share>{{ share_data|json_script }}</moz-share>
-      {% for message in messages %}<moz-message-bar type="success" message="{{ message }}" dismissable></moz-message-bar>{% endfor %}
-    </main>
-  </body>
-</html>
+{% block title %}{{ share_data.title }}{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'styles/moz-share.css' %}" />
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'components/moz-share.mjs' %}" type="module"></script>
+{% endblock %}
+
+{% block header %}
+  <div class="share-header-left">
+    <div class="share-title-block">
+      <h1 class="share-title">{{ share_title }}</h1>
+      <div class="share-meta">
+        <span class="link-count">
+          <picture>
+            <source srcset="/static/assets/folder-dark.svg" media="(prefers-color-scheme: dark)" />
+            <img src="/static/assets/folder-light.svg" alt="" />
+          </picture>
+          {{ link_count }}
+        </span>
+        {% if expiry_text %}
+          <span aria-hidden="true">·</span>
+          <span>{{ expiry_text }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="header-actions">
+      <moz-button id="copy-button" iconsrc="/static/assets/edit-copy.svg">Copy link</moz-button>
+    </div>
+  </div>
+{% endblock %}
+
+{% block main %}
+  <main class="share-wrapper">
+    <moz-share>{{ share_data|json_script }}</moz-share>
+    {% for message in messages %}<moz-message-bar type="success" message="{{ message }}" dismissable></moz-message-bar>{% endfor %}
+  </main>
+{% endblock %}
