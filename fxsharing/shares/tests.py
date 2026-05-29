@@ -528,7 +528,7 @@ class TestErrorPages(TestCase):
 
     def test_404_contains_expected_copy(self):
         response = page_not_found(self._request(), exception=None)
-        assert b"This page doesn" in response.content
+        assert b"can't find that page" in response.content
 
     def test_500_returns_500_status(self):
         response = server_error(self._request())
