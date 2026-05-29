@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages import get_messages
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
@@ -12,6 +13,7 @@ from allauth.account.signals import user_logged_in, user_logged_out
 
 from fxsharing.shares.middleware import OAuthLoginCompleteCookieMiddleware
 from fxsharing.shares.models import Link, SafetyStatus, Share, ShareStatus
+from fxsharing.shares.views import page_not_found, server_error
 
 User = get_user_model()
 
@@ -509,3 +511,29 @@ class TestOAuthLoginCompleteCookie(TestCase):
         cookie = response.cookies["auth"]
         assert cookie.value == ""
         assert cookie["max-age"] == 0
+
+
+class TestErrorPages(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _request(self):
+        request = self.factory.get("/")
+        request.user = AnonymousUser()
+        return request
+
+    def test_404_returns_404_status(self):
+        response = page_not_found(self._request(), exception=None)
+        assert response.status_code == 404
+
+    def test_404_contains_expected_copy(self):
+        response = page_not_found(self._request(), exception=None)
+        assert b"This page doesn" in response.content
+
+    def test_500_returns_500_status(self):
+        response = server_error(self._request())
+        assert response.status_code == 500
+
+    def test_500_contains_expected_copy(self):
+        response = server_error(self._request())
+        assert b"problem with this page" in response.content

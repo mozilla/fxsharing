@@ -155,3 +155,11 @@ def auth_complete(request):
 
 def landing(request):
     return render(request, "shares/landing.html")
+
+
+def page_not_found(request, exception):
+    return render(request, "shares/404.html", status=404)
+
+
+def server_error(request):
+    return render(request, "shares/500.html", status=500)

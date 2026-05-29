@@ -63,6 +63,7 @@ moz-card:not(:defined) {
   align-items: center;
   justify-content: center;
   align-self: flex-start;
+  box-sizing: border-box;
   margin-block-start: var(--space-large);
   min-height: var(--button-min-height);
   padding: var(--button-padding);

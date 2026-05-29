@@ -13,4 +13,6 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += [
         path("shares", views.shares, name="shares"),
+        path("debug/404", views.page_not_found, {"exception": None}, name="debug_404"),
+        path("debug/500", views.server_error, name="debug_500"),
     ]
