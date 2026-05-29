@@ -1,33 +1,16 @@
-{% extends "shares/base.html" %}
+{% extends "shares/callout_page.html" %}
 {% load static %}
 
 {% block title %}These shared links aren't available{% endblock %}
 
-{% block extra_css %}
-  <link rel="stylesheet" href="{% static 'styles/expired.css' %}" />
-{% endblock %}
+{% block image_src %}{% static 'assets/mascot-expired.svg' %}{% endblock %}
+{% block image_attrs %}width="220" height="220"{% endblock %}
 
-{% block extra_scripts %}
-  <script src="{% static 'components/moz-card/moz-card.mjs' %}" type="module"></script>
-{% endblock %}
+{% block heading %}These shared links aren't available{% endblock %}
+{% block body %}This page expired after 7 days or was removed for policy reasons.{% endblock %}
 
-{% block content %}
-  <moz-card>
-    <div class="expired-callout">
-      <img
-        class="expired-callout-image"
-        src="{% static 'assets/mascot-expired.svg' %}"
-        alt=""
-      />
-      <div class="expired-callout-copy">
-        <h1>These shared links aren't available</h1>
-        <p>
-          This page expired after 7 days or was removed for policy reasons.
-        </p>
-        {% if not is_firefox %}
-          <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
-        {% endif %}
-      </div>
-    </div>
-  </moz-card>
+{% block cta %}
+  {% if not is_firefox %}
+    <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
+  {% endif %}
 {% endblock %}

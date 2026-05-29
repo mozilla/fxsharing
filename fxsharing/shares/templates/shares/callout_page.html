@@ -1,0 +1,29 @@
+{% extends "shares/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'styles/error.css' %}" />
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'components/moz-card/moz-card.mjs' %}" type="module"></script>
+  {% block callout_extra_scripts %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+  <moz-card>
+    <div class="error-callout {% block callout_class %}{% endblock %}">
+      <img
+        class="error-callout-image"
+        src="{% block image_src %}{% endblock %}"
+        {% block image_attrs %}{% endblock %}
+        alt=""
+      />
+      <div class="error-callout-copy">
+        <h1>{% block heading %}{% endblock %}</h1>
+        <p>{% block body %}{% endblock %}</p>
+        {% block cta %}{% endblock %}
+      </div>
+    </div>
+  </moz-card>
+{% endblock %}

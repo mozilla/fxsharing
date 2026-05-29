@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages import get_messages
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -25,7 +26,7 @@ from fxsharing.shares.models import (
     ShareStatus,
 )
 from fxsharing.shares.tasks import BaseTaskWithRetry
-from fxsharing.shares.views import dev_login
+from fxsharing.shares.views import dev_login, page_not_found, server_error
 
 User = get_user_model()
 
@@ -480,7 +481,7 @@ class TestLandingView(TestCase):
             reverse("landing"),
             HTTP_USER_AGENT="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/136.0 Mobile/15E148 Safari/604.1",
         )
-        assert response.context["show_firefox_cta"] is False
+        assert response.context["is_firefox"] is True
 
     def test_missing_ua_shows_cta(self):
         response = self.client.get(reverse("landing"))
@@ -736,3 +737,29 @@ class TestDevLoginDisabled(TestCase):
         with override_settings(DEBUG=False):
             with self.assertRaises(Http404):
                 dev_login(request)
+
+
+class TestErrorPages(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _request(self):
+        request = self.factory.get("/")
+        request.user = AnonymousUser()
+        return request
+
+    def test_404_returns_404_status(self):
+        response = page_not_found(self._request(), exception=None)
+        assert response.status_code == 404
+
+    def test_404_contains_expected_copy(self):
+        response = page_not_found(self._request(), exception=None)
+        assert b"can't find that page" in response.content
+
+    def test_500_returns_500_status(self):
+        response = server_error(self._request())
+        assert response.status_code == 500
+
+    def test_500_contains_expected_copy(self):
+        response = server_error(self._request())
+        assert b"problem with this page" in response.content
