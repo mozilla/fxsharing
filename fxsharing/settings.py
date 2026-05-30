@@ -219,7 +219,7 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
-CINDER_URL = ""
-CINDER_API_ENDPOINT = CINDER_URL + "/api/v2/workflows/event/"
-CINDER_API_TOKEN = ""
-CINDER_WEBHOOK_TOKEN = ""
+CINDER_URL = env("CINDER_URL", default="")
+CINDER_API_ENDPOINT = CINDER_URL.rstrip("/") + "/api/v2/workflows/event/"
+CINDER_API_TOKEN = env("CINDER_API_TOKEN", default="")
+CINDER_WEBHOOK_TOKEN = env("CINDER_WEBHOOK_TOKEN", default="")
