@@ -1,14 +1,20 @@
 import hashlib
+import hmac
 import json
+import logging
+import requests
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.encoding import force_bytes
 from django.utils.html import escape
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from jsonschema import ValidationError, validate
@@ -18,6 +24,19 @@ from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
 from .tasks import check_link_safety, fetch_link_preview
 
+log = logging.getLogger(__name__)
+
+
+class CinderWebhookError(ValidationError):
+    """Validation error from Cinder webhook payload. Returned to Cinder as 400 error."""
+
+    reportable = True
+
+
+class CinderWebhookIgnoredError(CinderWebhookError):
+    """Not an error, a decision we ignore because we already took action, or it's for an entity we don't need to track."""
+
+    reportable = False
 
 def shares(request):
     shares = Share.objects.filter(parent_share__isnull=True)
@@ -70,6 +89,48 @@ def create_share_from_data(data, user, parent_share=None, idempotency_key=None):
     return share
 
 
+def report_link_sharing_quality(share):
+    token = settings.CINDER_API_TOKEN
+    endpoint = settings.CINDER_API_ENDPOINT
+    reason = "link_sharing" # TODO figure out what reason is for
+
+    payload = {
+        "event_name": "link_sharing_quality",
+        "entity": {
+            "entity_schema": "fxsharing",
+            "attributes": {
+                "id": str(share.id),
+                "shortcode": share.shortcode,
+                "title": share.title,
+                "reason": reason,
+            },
+        },
+        "subgraph": {
+            "entities": [
+                {
+                    "entity_schema": "fxsharing_url",
+                    "attributes": {
+                        "id": str(link.id),
+                        "url": link.url,
+                        "title": link.title,
+                    },
+                }
+                for link in share.links.all()[:30]
+            ],
+            "relationships": [],
+        },
+    }
+
+    response = requests.post(
+        endpoint,
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response
+
+
 @require_POST
 @csrf_protect
 def create_share(request):
@@ -106,7 +167,14 @@ def create_share(request):
         data=data, user=request.user, idempotency_key=idempotency_key
     )
 
+    # TODO - enqueue a job instead, so we don't block the response on Cinder responding
+    try:
+        report_link_sharing_quality(share)
+    except requests.RequestException:
+        log.exception("Cinder quality report failed for share %s", share.id)
+
     url = request.build_absolute_uri(f"/{share.shortcode}")
+
     return JsonResponse({"url": url}, status=201)
 
 
@@ -143,3 +211,107 @@ def landing(request):
     ua = request.META.get("HTTP_USER_AGENT", "")
     is_firefox = "Firefox/" in ua
     return render(request, "shares/landing.html", {"show_firefox_cta": not is_firefox})
+
+# First-iteration pass at webhook listener. Many TODOs:
+# * Not integrated into Celery
+# * Not validating request against a schema
+# * Uses dummy workflow defined in Celery staging env.
+# * We don't yet have a banned state defined for a user, so here we just
+#   block all their past shares but don't prevent future sharing.
+# * Dummy staging enforcement action names hard-coded. We might want to
+#   eventually put those names in an enum and verify against Cinder's API
+#   periodically.
+#
+# Bigger TODO: Cinder is saying we'll have to send in the URLs one-by-one,
+# which means we'll need to mark a share as OK only if all of its URLs have
+# been processed.
+@require_POST
+@csrf_exempt
+def ts_webhook(request):
+    # Loosely based on the AMO webhook handler at:
+    # https://github.com/mozilla/addons-server/blob/165b73f1/src/olympia/abuse/views.py#L355
+
+    # Verify the webhook signature matches the token.
+    header = request.headers.get("X-Cinder-Signature", "")
+    key = force_bytes(settings.CINDER_WEBHOOK_TOKEN)
+    digest = hmac.new(key, msg=request.body, digestmod=hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(header, digest):
+        log.error("Invalid webhook signature")
+        return HttpResponseBadRequest("Invalid webhook token")
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest("Invalid JSON in request body")
+
+    event = data.get("event")
+    payload = data.get("payload") or {}
+
+    try:
+        match event:
+            case "decision.created":
+                log.info("Valid payload from fxsharing queue: %s", payload)
+
+                share_id = payload.get("entity", {}).get("attributes", {}).get("id")
+                try:
+                    share = Share.objects.get(id=share_id)
+                except Share.DoesNotExist:
+                    log.warning("Webhook for unknown share id %s; ignoring", share_id)
+                    return JsonResponse(
+                        {
+                            "fxsharing": {
+                                "received": True,
+                                "handled": False,
+                                "not_handled_reason": "unknown share id",
+                            }
+                        },
+                        status=200,
+                    )
+
+                for action in payload.get("enforcement_actions") or []:
+                    log.info("Received enforcement action: %s", action)
+                    if action == "link-collections-ban-user":
+                        # TODO actually implement user banning.
+                        Share.objects.filter(user=share.user).update(
+                            status=ShareStatus.BLOCKED
+                        )
+                        break
+                    elif action == "link-collections-dont-publish-collection":
+                        Share.objects.filter(pk=share.pk).update(
+                            status=ShareStatus.BLOCKED
+                        )
+                    elif action == "link-collections-publish-collection":
+                        # TODO add a "passed review" ShareStatus so we can
+                        # audit published shares for any that never got
+                        # approved.
+                        pass
+
+            case "job.actioned":
+                # For now, we just ignore these. Even in cases where a share
+                # was enqueued for processing, we should also get a decision
+                # created event.
+                pass
+            case _:
+                log.info("Unsupported payload received: %s", str(data)[:255])
+                raise CinderWebhookError(f"{event} is not supported")
+    except CinderWebhookError as exc:
+        return JsonResponse(
+            data={
+                "fxsharing": {
+                    "received": True,
+                    "handled": False,
+                    "not_handled_reason": exc.message,
+                }
+            },
+            # Differentiate errors we want exposed in Cinder's logs, and
+            # known cases where we can safely ignore the error.
+            status=(400 if exc.reportable else 200),
+        )
+    return JsonResponse(
+        data={"fxsharing": {"received": True, "handled": True}},
+        status=201,
+    )
+
+
+
+

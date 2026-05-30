@@ -218,3 +218,8 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+
+CINDER_URL = ""
+CINDER_API_ENDPOINT = CINDER_URL + "/api/v2/workflows/event/"
+CINDER_API_TOKEN = ""
+CINDER_WEBHOOK_TOKEN = ""

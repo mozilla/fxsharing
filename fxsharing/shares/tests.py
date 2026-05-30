@@ -1,9 +1,12 @@
+import hashlib
+import hmac
 import json
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from allauth.account.signals import user_logged_in, user_logged_out
@@ -472,3 +475,81 @@ class TestOAuthLoginCompleteCookie(TestCase):
         cookie = response.cookies["auth"]
         assert cookie.value == ""
         assert cookie["max-age"] == 0
+
+
+@override_settings(CINDER_WEBHOOK_TOKEN="test-webhook-token")
+class TestTsWebhook(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6webhook")
+        cls.share = Share.objects.create(title="Sample", user=cls.user)
+
+    def _signed_post(self, payload):
+        body = json.dumps(payload).encode("utf-8")
+        sig = hmac.new(
+            settings.CINDER_WEBHOOK_TOKEN.encode("utf-8"),
+            msg=body,
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+        return self.client.post(
+            reverse("ts_webhook"),
+            data=body,
+            content_type="application/json",
+            HTTP_X_CINDER_SIGNATURE=sig,
+        )
+
+    def _decision_payload(self, share, enforcement_actions):
+        return {
+            "event": "decision.created",
+            "payload": {
+                "enforcement_actions": enforcement_actions,
+                "entity": {
+                    "entity_schema": "fxsharing",
+                    "attributes": {
+                        "id": str(share.id),
+                        "shortcode": share.shortcode,
+                        "title": share.title,
+                        "reason": "test",
+                    },
+                },
+            },
+        }
+
+    def test_rejects_invalid_signature(self):
+        payload = self._decision_payload(
+            self.share, ["link-collections-dont-publish-collection"]
+        )
+        response = self.client.post(
+            reverse("ts_webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_CINDER_SIGNATURE="not-a-real-signature",
+        )
+        assert response.status_code == 400
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
+
+    def test_dont_publish_blocks_share(self):
+        payload = self._decision_payload(
+            self.share, ["link-collections-dont-publish-collection"]
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.BLOCKED
+
+    def test_ban_user_blocks_all_shares_for_that_user(self):
+        other_share = Share.objects.create(title="Other", user=self.user)
+        bystander_user = User.objects.create_user(fxa_id="a1b2c3d4e5f6bystand")
+        bystander_share = Share.objects.create(title="Bystander", user=bystander_user)
+
+        payload = self._decision_payload(self.share, ["link-collections-ban-user"])
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+
+        self.share.refresh_from_db()
+        other_share.refresh_from_db()
+        bystander_share.refresh_from_db()
+        assert self.share.status == ShareStatus.BLOCKED
+        assert other_share.status == ShareStatus.BLOCKED
+        assert bystander_share.status == ShareStatus.ACTIVE
