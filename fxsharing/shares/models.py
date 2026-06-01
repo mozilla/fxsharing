@@ -91,8 +91,9 @@ class Link(models.Model):
         default=SafetyStatus.UNKNOWN,
     )
     preview_title = models.CharField(max_length=255, blank=True)
-    preview_description = models.TextField(blank=True)
-    preview_image_url = models.URLField(max_length=2048, blank=True)
+    preview_description = models.TextField(null=True)
+    preview_image_url = models.URLField(max_length=2048, null=True)
+    favicon_image_url = models.URLField(max_length=2048, null=True)
 
     def __str__(self):
         return self.title or self.url
@@ -107,4 +108,5 @@ class Link(models.Model):
             preview_title=self.preview_title,
             preview_description=self.preview_description,
             preview_image_url=self.preview_image_url,
+            favicon_image_url=self.favicon_image_url,
         )
