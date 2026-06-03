@@ -1,16 +1,79 @@
 import requests
 from bs4 import BeautifulSoup
 from celery import shared_task
+from celery.contrib.django.task import DjangoTask
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
 
+class BaseTaskWithRetry(DjangoTask):
+    """Celery base task with retry-with-backoff defaults and DLQ on exhaustion.
+
+    Subclasses (or `@shared_task(base=BaseTaskWithRetry)` callers) inherit:
+      - automatic retry on any unhandled `Exception` (override `autoretry_for`
+        on a task to narrow the set)
+      - exponential backoff capped at `retry_backoff_max` seconds, with jitter
+      - a structured log line on every retry
+      - a `DeadLetterTask` row + structured log line when retries are exhausted
+    """
+
+    autoretry_for = (Exception,)
+    retry_backoff = True
+    retry_backoff_max = 600
+    retry_jitter = True
+    max_retries = 3
+
+    def on_retry(self, exc, task_id, args, kwargs, einfo):
+        attempt = (self.request.retries or 0) + 1
+        logger.warning(
+            "celery task retry: %s (attempt %d/%d) exc=%s",
+            self.name,
+            attempt,
+            self.max_retries,
+            exc,
+            extra={
+                "task_name": self.name,
+                "task_id": task_id,
+                "attempt": attempt,
+                "max_retries": self.max_retries,
+                "exception_class": type(exc).__name__,
+            },
+        )
+        super().on_retry(exc, task_id, args, kwargs, einfo)
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        from .models import DeadLetterTask
+
+        traceback = einfo.traceback if einfo else ""
+        queue = (self.request.delivery_info or {}).get("routing_key", "") or ""
+        logger.error(
+            "celery task moved to DLQ: %s exc=%s",
+            self.name,
+            exc,
+            extra={
+                "task_name": self.name,
+                "task_id": task_id,
+                "exception_class": type(exc).__name__,
+                "queue": queue,
+            },
+        )
+        DeadLetterTask.objects.create(
+            task_name=self.name,
+            task_id=task_id or "",
+            args=list(args or []),
+            kwargs=dict(kwargs or {}),
+            exception_class=type(exc).__name__,
+            exception_message=str(exc),
+            traceback=traceback,
+            queue=queue,
+        )
+        super().on_failure(exc, task_id, args, kwargs, einfo)
+
+
 @shared_task(
+    base=BaseTaskWithRetry,
     autoretry_for=(requests.exceptions.RequestException,),
-    max_retries=3,
-    default_retry_delay=30,
-    retry_backoff=True,
 )
 def fetch_link_preview(link_id):
     from .models import Link
@@ -63,7 +126,7 @@ def fetch_link_preview(link_id):
     logger.info("stored preview for %s: title=%r", link.url, og_tags.get("title", ""))
 
 
-@shared_task
+@shared_task(base=BaseTaskWithRetry)
 def check_link_safety(link_id):
     # Stub: Web Risk API integration would go here
     pass

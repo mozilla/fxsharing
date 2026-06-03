@@ -192,3 +192,6 @@ media/
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+# Local Redis snapshots (created when running redis-server natively)
+*.rdb

@@ -142,3 +142,22 @@ class Link(models.Model):
             preview_description=self.preview_description,
             preview_image_url=self.preview_image_url,
         )
+
+
+class DeadLetterTask(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_name = models.CharField(max_length=255)
+    task_id = models.CharField(max_length=255, db_index=True)
+    args = models.JSONField(default=list, blank=True)
+    kwargs = models.JSONField(default=dict, blank=True)
+    exception_class = models.CharField(max_length=255)
+    exception_message = models.TextField(blank=True)
+    traceback = models.TextField(blank=True)
+    queue = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.task_name} ({self.task_id})"
