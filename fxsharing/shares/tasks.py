@@ -22,7 +22,7 @@ class BaseTaskWithRetry(DjangoTask):
     retry_backoff = True
     retry_backoff_max = 600
     retry_jitter = True
-    max_retries = 5
+    max_retries = 3
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         attempt = (self.request.retries or 0) + 1
