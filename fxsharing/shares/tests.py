@@ -251,6 +251,58 @@ class TestCreateShareRequiresAuth(TestCase):
         assert response.status_code == 401
         assert Share.objects.count() == 0
 
+    def test_anonymous_post_stores_link_count_in_session(self):
+        payload = {
+            "type": "tabs",
+            "title": "My Links",
+            "links": [
+                {"url": "https://example.com", "title": "A"},
+                {"url": "https://mozilla.org", "title": "B"},
+                {"url": "https://firefox.com", "title": "C"},
+            ],
+        }
+        self.client.post(
+            reverse("create_share"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        assert self.client.session["pending_link_count"] == 3
+
+    def test_anonymous_post_with_invalid_json_does_not_error(self):
+        response = self.client.post(
+            reverse("create_share"),
+            data="not json",
+            content_type="application/json",
+        )
+        assert response.status_code == 401
+        assert "pending_link_count" not in self.client.session
+
+
+class TestAuthComplete(TestCase):
+    def test_returns_200(self):
+        response = self.client.get(reverse("auth_complete"))
+        assert response.status_code == 200
+
+    def test_defaults_to_8_items_when_no_session_count(self):
+        response = self.client.get(reverse("auth_complete"))
+        assert response.context["link_count"] == 8
+        assert b'count="8"' in response.content
+
+    def test_uses_session_link_count(self):
+        session = self.client.session
+        session["pending_link_count"] = 5
+        session.save()
+        response = self.client.get(reverse("auth_complete"))
+        assert response.context["link_count"] == 5
+        assert b'count="5"' in response.content
+
+    def test_clears_session_link_count_after_render(self):
+        session = self.client.session
+        session["pending_link_count"] = 5
+        session.save()
+        self.client.get(reverse("auth_complete"))
+        assert "pending_link_count" not in self.client.session
+
 
 class TestViewShare(TestCase):
     @classmethod

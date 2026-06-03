@@ -71,12 +71,12 @@ class MozLink extends MozLitElement {
 
     @media (max-width: 964px) {
       .favicon-container picture {
-        width: 24px;
-        height: 24px;
+        width: var(--size-item-medium);
+        height: var(--size-item-medium);
       }
 
       .favicon {
-        width: 24px;
+        width: var(--size-item-medium);
       }
     }
   `;
@@ -143,10 +143,90 @@ customElements.define("moz-link", MozLink);
 class MozShare extends MozLitElement {
   static properties = {
     share: { type: Object },
+    loading: { type: Boolean },
+    count: { type: Number },
   };
 
   static styles = css`
+    @keyframes skeleton-shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-bar,
+    .skeleton-favicon {
+      background: linear-gradient(
+        90deg,
+        var(--button-background-color) 0%,
+        var(--button-background-color) 30%,
+        var(--button-background-color-hover) 50%,
+        var(--button-background-color) 70%,
+        var(--button-background-color) 100%
+      );
+      background-size: 300% 100%;
+      animation: skeleton-shimmer 3.5s linear infinite;
+    }
+
+    .skeleton-bar {
+      border-radius: var(--border-radius-circle);
+    }
+
+    .skeleton-title {
+      height: var(--size-item-medium);
+      width: 100%;
+      margin-block-end: var(--space-small);
+    }
+
+    .skeleton-meta {
+      height: var(--font-size-large);
+      width: 70%;
+    }
+
+    .skeleton-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-large);
+      padding: var(--space-large);
+      background: light-dark(var(--color-white-alpha-20), var(--color-black-alpha-20));
+      border: var(--border-width) solid var(--border-color-card);
+      border-radius: var(--border-radius-small);
+      box-shadow: var(--box-shadow-card);
+    }
+
+    .skeleton-favicon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--border-radius-small);
+      flex-shrink: 0;
+    }
+
+    .skeleton-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xsmall);
+    }
+
+    .skeleton-bar-title {
+      height: var(--font-size-xlarge);
+      width: 100%;
+    }
+
+    .skeleton-bar-url {
+      height: var(--font-size-small);
+      width: 100%;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .skeleton-bar,
+      .skeleton-favicon {
+        animation: none;
+      }
+    }
+
     :host {
+      color: var(--text-color);
       display: flex;
       flex-direction: column;
       min-height: 100vh;
@@ -165,6 +245,7 @@ class MozShare extends MozLitElement {
       display: flex;
       flex: 1;
       flex-direction: column;
+      width: 100%;
       max-width: 964px;
       min-width: 380px;
       margin-inline: auto;
@@ -239,7 +320,7 @@ class MozShare extends MozLitElement {
 
     .share-footer {
       align-items: flex-start;
-      border-top: 1px solid var(--border-color-card);
+      border-top: var(--border-width) solid var(--border-color-card);
       display: flex;
       justify-content: space-between;
       margin-block-start: auto;
@@ -383,6 +464,9 @@ class MozShare extends MozLitElement {
 
   init() {
     const dataEl = this.querySelector("script[type='application/json']");
+    if (!dataEl) {
+      return;
+    }
     try {
       this.share = JSON.parse(dataEl.textContent);
     } catch (e) {
@@ -408,9 +492,58 @@ class MozShare extends MozLitElement {
     this.reportDialog.close();
   }
 
+  renderFooterLinks(loading = false) {
+    return html`
+      <div class="footer-links">
+        <button
+          class="footer-link"
+          ?disabled=${loading}
+          @click=${this.openReportDialog}
+        >Report unsafe page</button>
+        <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/terms/services/">Terms of use</a>
+        <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/acceptable-use/">Acceptable use policy</a>
+      </div>
+    `;
+  }
+
+  renderSkeleton() {
+    const skeletonItems = Array.from({ length: this.count || 8 });
+    return html`
+      <div class="share-page">
+        <div class="share-content">
+          <div class="share-header">
+            <img class="logo" src="/static/assets/logo.svg" alt="" />
+            <div class="share-header-left">
+              <div class="share-title-block">
+                <div class="skeleton-bar skeleton-title"></div>
+                <div class="skeleton-bar skeleton-meta"></div>
+              </div>
+            </div>
+          </div>
+          <div class="link-list" role="list">
+            ${skeletonItems.map(
+              () => html`
+                <div class="skeleton-item" role="listitem">
+                  <div class="skeleton-favicon"></div>
+                  <div class="skeleton-text">
+                    <div class="skeleton-bar skeleton-bar-title"></div>
+                    <div class="skeleton-bar skeleton-bar-url"></div>
+                  </div>
+                </div>
+              `,
+            )}
+          </div>
+          <footer class="share-footer">
+            ${this.renderFooterLinks(true)}
+          </footer>
+        </div>
+      </div>
+    `;
+  }
+
   render() {
-    if (!this.share) {
-      return null;
+    if (this.loading) {
+      return this.renderSkeleton();
     }
 
     const expiryText = this.expiryText;
@@ -471,13 +604,7 @@ class MozShare extends MozLitElement {
                 these links. Open links only if you trust the sender.
               </p>
             </div>
-            <div class="footer-links">
-              <button class="footer-link" @click=${this.openReportDialog}>
-                Report unsafe page
-              </button>
-              <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/terms/services/">Terms of use</a>
-              <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/acceptable-use/">Acceptable use policy</a>
-            </div>
+            ${this.renderFooterLinks()}
           </footer>
         </div>
 
