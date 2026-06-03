@@ -60,6 +60,36 @@ To test authenticated endpoints locally, log in first via the dummy FxA provider
 
 ## Development
 
+### Seeding sample data
+
+Populate the database with diverse, edge-case sample data (shares with the
+maximum number of links, small shares, nested shares, expired shares,
+soft-deleted shares, a banned user, a soft-deleted user, and shares in various
+moderation statuses):
+
+```bash
+make seed
+```
+
+`make seed` targets the right database automatically: if the Docker stack is
+running (`make up`), it seeds inside the `app` container; otherwise it seeds your
+local database. This matters because the two run against different databases —
+seeding the host while the Dockerized app reads the container's database would
+leave the app looking empty.
+
+The command is idempotent — every run wipes the previously seeded users (their
+`fxa_id` is prefixed with `seed-`) and recreates everything from scratch. It
+only runs when `DEBUG=True`; with `DEBUG=False` it exits with an error.
+
+### Logging in as a seed user (dev-login)
+
+When `DEBUG=True`, a dev-only login page is available at
+[`http://localhost:8000/dev-login`](http://localhost:8000/dev-login). It lists
+every user (including banned and soft-deleted ones) and lets you log in as any of
+them with one click — no real FxA OAuth required — so you can manually QA
+authenticated flows as a specific seed user. The same page has a log-out button.
+This route does not exist when `DEBUG=False`.
+
 ### Running tests
 
 ```bash

@@ -1,0 +1,107 @@
+body {
+  min-height: 100vh;
+  margin: 0;
+  box-sizing: border-box;
+  padding: var(--space-xlarge);
+  background-image: url("/static/assets/background-light.png");
+  background-size: cover;
+  background-attachment: fixed;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image: url("/static/assets/background-dark.png");
+  }
+}
+
+/* Dark, glassy panel so the page reads as light text on a dark surface
+   regardless of the system color scheme, matching the landing aesthetic. */
+.dev-login {
+  width: 100%;
+  max-width: 720px;
+  padding: var(--space-xlarge);
+  border-radius: var(--border-radius-large);
+  background-color: color-mix(in srgb, var(--color-gray-90) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-white) 12%, transparent);
+  box-shadow: 0 8px 30px #0006;
+  backdrop-filter: blur(8px);
+  color: var(--color-gray-05);
+}
+
+.dev-login h1 {
+  margin-block: 0 var(--space-small);
+}
+
+.dev-login .subtitle {
+  margin-block: 0 var(--space-large);
+  color: var(--color-gray-30);
+}
+
+.dev-login code {
+  padding: 1px 6px;
+  border-radius: var(--border-radius-small);
+  background-color: color-mix(in srgb, var(--color-white) 14%, transparent);
+  font-size: var(--font-size-small);
+}
+
+.dev-login .current-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-small);
+  margin-block: 0 var(--space-large);
+}
+
+.dev-login table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dev-login th,
+.dev-login td {
+  text-align: start;
+  padding: var(--space-small) var(--space-medium);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-white) 10%, transparent);
+}
+
+.dev-login th {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-gray-30);
+}
+
+.dev-login td:last-child {
+  text-align: end;
+}
+
+.dev-login .msg {
+  margin-block: 0 var(--space-large);
+  padding: var(--space-small) var(--space-medium);
+  border-radius: var(--border-radius-medium);
+  background-color: color-mix(in srgb, var(--color-green-50, #2ac3a2) 22%, transparent);
+}
+
+.dev-login .tag {
+  display: inline-block;
+  margin-inline-end: var(--space-xsmall);
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--font-size-small);
+}
+
+.dev-login .tag.staff {
+  background-color: color-mix(in srgb, var(--blue-40) 30%, transparent);
+}
+
+.dev-login .tag.banned {
+  background-color: color-mix(in srgb, var(--red-40) 35%, transparent);
+}
+
+.dev-login .tag.deleted {
+  background-color: color-mix(in srgb, var(--color-white) 16%, transparent);
+  color: var(--color-gray-30);
+}

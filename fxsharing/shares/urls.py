@@ -13,4 +13,5 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += [
         path("shares", views.shares, name="shares"),
+        path("dev-login", views.dev_login, name="dev_login"),
     ]

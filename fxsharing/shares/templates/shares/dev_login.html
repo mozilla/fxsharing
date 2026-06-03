@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dev login</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
+    <link rel="stylesheet" href="{% static 'styles/dev_login.css' %}" />
+  </head>
+
+  <body>
+    <main class="dev-login">
+      <h1>Dev login</h1>
+      <p class="subtitle">
+        <strong>DEBUG only.</strong> Log in as any user without real FxA OAuth.
+        Run <code>make seed</code> to populate these users.
+      </p>
+
+      {% for message in messages %}<p class="msg">{{ message }}</p>{% endfor %}
+
+      {% if user.is_authenticated %}
+        <div class="current-user">
+          <span>Logged in as <strong>{{ user.fxa_id }}</strong>.</span>
+          <form method="post">
+            <input type="hidden" name="action" value="logout" />
+            <button type="submit">Log out</button>
+          </form>
+        </div>
+      {% else %}
+        <p class="current-user">Not logged in.</p>
+      {% endif %}
+
+      <table>
+        <thead>
+          <tr><th>fxa_id</th><th>flags</th><th>shares</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for dev_user in dev_users %}
+            <tr>
+              <td>{{ dev_user.fxa_id }}</td>
+              <td>
+                {% if dev_user.is_staff %}<span class="tag staff">staff</span>{% endif %}
+                {% if dev_user.is_banned %}<span class="tag banned">banned</span>{% endif %}
+                {% if dev_user.deleted_at %}<span class="tag deleted">deleted</span>{% endif %}
+              </td>
+              <td>{{ dev_user.share_count }}</td>
+              <td>
+                <form method="post">
+                  <input type="hidden" name="user_id" value="{{ dev_user.id }}" />
+                  <button type="submit">Log in</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">No users yet — run <code>make seed</code>.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>
