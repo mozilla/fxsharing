@@ -15,10 +15,13 @@ from django.views.decorators.http import require_POST
 
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
+from opentelemetry import trace
 
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
 from .tasks import check_link_safety, fetch_link_preview
+
+tracer = trace.get_tracer(__name__)
 
 
 def shares(request):
@@ -37,6 +40,11 @@ def shares(request):
 
 def view_share(request, shortcode):
     share = get_object_or_404(Share, shortcode=shortcode)
+    with tracer.start_as_current_span("share.view") as span:
+        span.set_attribute("share.shortcode", shortcode)
+        span.set_attribute("share.status", share.status)
+        span.set_attribute("share.link_count", share.links.count())
+        span.set_attribute("share.is_nested", share.parent_share_id is not None)
     return render(request, "shares/view_share.html", {"share_data": share.to_dict()})
 
 
@@ -101,12 +109,20 @@ def create_share(request):
 
     existing = Share.objects.filter(idempotency_key=idempotency_key).first()
     if existing:
+        with tracer.start_as_current_span("share.create") as span:
+            span.set_attribute("share.outcome", "idempotent_duplicate")
+            span.set_attribute("share.shortcode", existing.shortcode)
         url = request.build_absolute_uri(f"/{existing.shortcode}")
         return JsonResponse({"url": url})
 
     share = create_share_from_data(
         data=data, user=request.user, idempotency_key=idempotency_key
     )
+
+    with tracer.start_as_current_span("share.create") as span:
+        span.set_attribute("share.outcome", "created")
+        span.set_attribute("share.shortcode", share.shortcode)
+        span.set_attribute("share.link_count", len(data.get("links", [])))
 
     url = request.build_absolute_uri(f"/{share.shortcode}")
     return JsonResponse({"url": url}, status=201)
@@ -128,9 +144,14 @@ def report_share(request, shortcode):
 
     share = get_object_or_404(Share, shortcode=shortcode)
     # Only transition ACTIVE shares
-    Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
+    updated = Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
         status=ShareStatus.UNDER_REVIEW
     )
+
+    with tracer.start_as_current_span("share.report") as span:
+        span.set_attribute("share.shortcode", shortcode)
+        span.set_attribute("report.reason", reason)
+        span.set_attribute("share.transitioned", updated > 0)
 
     messages.success(request, "Your report has been submitted.")
     return redirect(reverse("view_share", args=[shortcode]))
