@@ -7,10 +7,15 @@
 {% block image_attrs %}width="220" height="220"{% endblock %}
 
 {% block heading %}These shared links aren't available{% endblock %}
-{% block body %}This page expired after 7 days or was removed for policy reasons.{% endblock %}
+{% block body %}
+  <p>This page expired after 7 days or was removed for <a href="https://www.mozilla.org/en-US/about/legal/acceptable-use/">policy reasons</a>.</p>
+  <p>Want to share links with anyone?</p>
+{% endblock %}
 
 {% block cta %}
-  {% if not is_firefox %}
+  {% if is_firefox %}
+    <a class="cta-button">Create a new link</a>
+  {% else %}
     <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
   {% endif %}
 {% endblock %}

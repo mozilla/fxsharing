@@ -19,7 +19,7 @@ body {
   align-items: center;
   gap: var(--space-large);
   padding: var(--space-xxlarge) var(--space-medium);
-  max-width: 964px;
+  max-width: 720px;
   margin-inline: auto;
   width: 100%;
   box-sizing: border-box;
@@ -28,20 +28,43 @@ body {
 
 .site-logo {
   position: absolute;
-  width: 50px;
-  transform: translateX(-300%);
+  top: var(--space-large);
+  left: var(--space-xlarge);
+  width: var(--size-item-large);
+  height: var(--size-item-large);
 }
 
-@media (max-width: 1300px) {
+@media (min-width: 501px) {
+  .site-logo {
+    top: var(--space-xxlarge);
+    left: var(--space-xxlarge);
+  }
+}
+
+@media (min-width: 821px) {
+  .site-logo {
+    top: var(--size-item-xlarge);
+    left: auto;
+    right: 100%;
+    width: var(--size-item-xlarge);
+    height: var(--size-item-xlarge);
+    margin-inline-end: 0;
+  }
+}
+
+@media (min-width: 1000px) {
+  .site-logo {
+    margin-inline-end: clamp(0px, calc((100vw - 720px) / 4), 100px);
+  }
+}
+
+@media (min-width: 1301px) {
   .site-header {
-    max-width: 720px;
+    max-width: 964px;
   }
 
   .site-logo {
-    position: static;
-    transform: none;
-    order: 2;
-    flex-shrink: 0;
+    margin-inline-end: clamp(0px, calc((100vw - 964px) / 4), 100px);
   }
 }
 
@@ -76,6 +99,10 @@ moz-card:not(:defined) {
   font-size: var(--button-font-size);
   text-decoration: none;
 
+  &:visited {
+    color: var(--button-text-color-primary);
+  }
+
   &:hover {
     background-color: var(--button-background-color-primary-hover);
     border-color: var(--button-border-color-primary-hover);
@@ -97,7 +124,9 @@ moz-card:not(:defined) {
 moz-card {
   --card-box-shadow: none;
   --card-border: none;
-  --card-border-radius: 24px;
+  --card-border-radius: var(--size-item-medium);
+  margin-inline: var(--space-xlarge);
+  min-width: 320px;
 
   &::part(moz-card),
   &::part(content) {

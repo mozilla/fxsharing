@@ -5,19 +5,20 @@
 
 {% block image_src %}{% static 'assets/kit-error.svg' %}{% endblock %}
 
-{% block callout_class %}error-callout-wide{% endblock %}
-
 {% block heading %}Looks like we can't find that page{% endblock %}
 {% block body %}
   {% if is_firefox %}
-    Check the link, or share a new tab group or bookmark folder
+    <p>Check the link, or share a new tab group or bookmark folder</p>
   {% else %}
-    Check the link or download Firefox to create a new page of sharable links.
+    <p>Check the link or download Firefox to create a new page of sharable links.</p>
   {% endif %}
 {% endblock %}
 
 {% block cta %}
-  {% if not is_firefox %}
+  {% if is_firefox %}
+  {% comment %} TODO: add sumo link {% endcomment %}
+    <a class="cta-button" href="">Share new links</a>
+  {% else %}
     <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Download Firefox</a>
   {% endif %}
 {% endblock %}

@@ -156,9 +156,7 @@ def auth_complete(request):
 
 
 def landing(request):
-    ua = request.META.get("HTTP_USER_AGENT", "")
-    is_firefox = "Firefox/" in ua or "FxiOS/" in ua
-    return render(request, "shares/landing.html", {"is_firefox": is_firefox})
+    return render(request, "shares/landing.html")
 
 
 def dev_login(request):

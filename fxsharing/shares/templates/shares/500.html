@@ -9,14 +9,12 @@
 
 {% block image_src %}{% static 'assets/kit-error.svg' %}{% endblock %}
 
-{% block callout_class %}error-callout-wide{% endblock %}
-
 {% block heading %}Looks like there's a problem with this page{% endblock %}
 {% block body %}
   {% if is_firefox %}
-    This page isn't available right now. Try again later.
+    <p>This page isn't available right now. Try again later.</p>
   {% else %}
-    This page isn't available right now. Try again later, or download Firefox to create a new page of sharable links.
+    <p>This page isn't available right now. Try again later, or download Firefox to create a new page of sharable links.</p>
   {% endif %}
 {% endblock %}
 

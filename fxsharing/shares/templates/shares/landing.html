@@ -15,13 +15,18 @@
   <moz-card>
     <div class="callout">
       <picture>
+        <source media="(max-width: 819px) and (prefers-color-scheme: dark)" srcset="{% static 'assets/kit-landing-dark-wide.svg' %}" />
+        <source media="(max-width: 819px)" srcset="{% static 'assets/kit-landing-light-wide.svg' %}" />
         <source media="(prefers-color-scheme: dark)" srcset="{% static 'assets/kit-landing-dark.svg' %}" />
         <img class="callout-image" src="{% static 'assets/kit-landing-light.svg' %}" alt="" />
       </picture>
       <div class="callout-copy">
-        <h1>Share tabs in a snap</h1>
-        <p>Create an easy-to-share page of bookmarks you can send to anyone.</p>
-        {% if not is_firefox %}
+        <h1>Share a collection of links on any browser</h1>
+        <p>Create a public page for links from Firefox. Share a folder, tab group, or selected tabs to get started.</p>
+        {% if is_firefox %}
+        {% comment %} TODO: add sumo link {% endcomment %}
+          <a class="cta-button">Learn more</a>
+        {% else %}
           <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
         {% endif %}
       </div>

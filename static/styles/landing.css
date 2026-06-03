@@ -8,11 +8,39 @@
 }
 
 .callout-image {
-  border-radius: 24px;
+  border-radius: var(--size-item-medium);
   height: var(--size-layout-large);
 }
 
 .callout-copy {
   padding-inline: 80px;
+}
+
+@media (max-width: 819px) {
+  .callout {
+    flex-direction: column;
+    padding: var(--space-xlarge);
+    gap: var(--space-xxlarge);
+    text-align: center;
+  }
+
+  .callout picture {
+    width: 100%;
+  }
+
+  .callout-image {
+    width: 100%;
+  }
+
+  .callout-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-inline: 0;
+  }
+
+  .callout-copy .cta-button {
+    align-self: center;
+  }
 }
 
