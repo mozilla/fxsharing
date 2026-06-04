@@ -396,6 +396,7 @@ class MozShare extends MozLitElement {
     let links = [];
     let shares = [this.share];
     while (shares.length) {
+      let share = shares.shift();
       for (let link of share.links) {
         if (link.links) {
           shares.push(link);
