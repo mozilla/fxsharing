@@ -606,6 +606,7 @@ class TestBaseTaskWithRetry(TestCase):
         assert dlq.exception_class == "ValueError"
         assert dlq.args == ["payload"]
 
+
 @override_settings(DEBUG=True)
 class TestSeedCommand(TestCase):
     @staticmethod
