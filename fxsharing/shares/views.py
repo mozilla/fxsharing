@@ -138,20 +138,18 @@ def create_share(request):
         with tracer.start_as_current_span("share.create") as span:
             span.set_attribute("share.outcome", "idempotent_duplicate")
             span.set_attribute("share.shortcode", existing.shortcode)
-        url = request.build_absolute_uri(f"/{existing.shortcode}")
-        return JsonResponse({"url": url})
-
-    share = create_share_from_data(
-        data=data, user=request.user, idempotency_key=idempotency_key
-    )
+            url = request.build_absolute_uri(f"/{existing.shortcode}")
+            return JsonResponse({"url": url})
 
     with tracer.start_as_current_span("share.create") as span:
         span.set_attribute("share.outcome", "created")
-        span.set_attribute("share.shortcode", share.shortcode)
         span.set_attribute("share.link_count", len(data.get("links", [])))
-
-    url = request.build_absolute_uri(f"/{share.shortcode}")
-    return JsonResponse({"url": url}, status=201)
+        share = create_share_from_data(
+            data=data, user=request.user, idempotency_key=idempotency_key
+        )
+        span.set_attribute("share.shortcode", share.shortcode)
+        url = request.build_absolute_uri(f"/{share.shortcode}")
+        return JsonResponse({"url": url}, status=201)
 
 
 VALID_REPORT_REASONS = {"copyright", "harmful", "spam", "other"}
@@ -169,14 +167,13 @@ def report_share(request, shortcode):
         return HttpResponseBadRequest(f"Invalid reason: {reason}")
 
     share = get_object_or_404(Share, shortcode=shortcode)
-    # Only transition ACTIVE shares
-    updated = Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
-        status=ShareStatus.UNDER_REVIEW
-    )
-
     with tracer.start_as_current_span("share.report") as span:
         span.set_attribute("share.shortcode", shortcode)
         span.set_attribute("report.reason", reason)
+        # Only transition ACTIVE shares
+        updated = Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
+            status=ShareStatus.UNDER_REVIEW
+        )
         span.set_attribute("share.transitioned", updated > 0)
 
     messages.success(request, "Your report has been submitted.")
