@@ -42,13 +42,23 @@ def view_share(request, shortcode):
         return render(request, "shares/view_expired.html", status=410)
 
     share_data = share.to_dict()
+    link_count = 0
+    shares = [share_data]
+    while len(shares):
+        s = shares.pop(0)
+        for link in s.get("links"):
+            if link.get("links"):
+                shares.append(link)
+            else:
+                link_count += 1
+
     return render(
         request,
         "shares/view_share.html",
         {
             "share_data": share_data,
             "share_title": share.title,
-            "link_count": len(share_data["links"]),
+            "link_count": link_count,
             "expiry_text": share.expiry_text,
         },
     )
