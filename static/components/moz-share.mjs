@@ -4,6 +4,7 @@ import "./moz-button/moz-button.mjs";
 import "./moz-card/moz-card.mjs";
 import "./moz-message-bar/moz-message-bar.mjs";
 import "./moz-radio-group/moz-radio-group.mjs";
+import { recordEvent } from "./telemetry.mjs";
 
 function faviconUrl(link) {
   if (link.favicon_url) {
@@ -85,6 +86,10 @@ class MozLink extends MozLitElement {
     this.faviconError = true;
   }
 
+  handleLinkClick() {
+    recordEvent("link_click", {});
+  }
+
   render() {
     if (!this.link?.url) {
       return null;
@@ -99,6 +104,7 @@ class MozLink extends MozLitElement {
           href=${this.link.url}
           target="_blank"
           rel="noopener noreferrer"
+          @click=${this.handleLinkClick}
         >
           <div class="favicon-container">
             <picture>
@@ -410,6 +416,7 @@ class MozShare extends MozLitElement {
 
   copyLink() {
     navigator.clipboard.writeText(location.href);
+    recordEvent("copy_link", {});
     if (this._copyBtn) {
       this._copyBtn.textContent = "Link Copied";
       this._copyBtn.iconSrc = "/static/assets/check-filled.svg";
@@ -421,6 +428,7 @@ class MozShare extends MozLitElement {
   }
 
   openReportDialog() {
+    recordEvent("report_dialog_open", {});
     this.reportDialog.showModal();
   }
 
@@ -441,11 +449,13 @@ class MozShare extends MozLitElement {
         <a
           class="footer-link"
           href="https://www.mozilla.org/en-US/about/legal/terms/services/"
+          @click=${() => recordEvent("tou_click", {})}
           >Terms of use</a
         >
         <a
           class="footer-link"
           href="https://www.mozilla.org/en-US/about/legal/acceptable-use/"
+          @click=${() => recordEvent("aup_click", {})}
           >Acceptable use policy</a
         >
       </div>

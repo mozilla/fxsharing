@@ -9,6 +9,7 @@
 
 {% block extra_scripts %}
   <script src="{% static 'components/moz-card/moz-card.mjs' %}" type="module"></script>
+  <script src="{% static 'components/telemetry.mjs' %}" type="module"></script>
 {% endblock %}
 
 {% block content %}
@@ -27,7 +28,7 @@
         {% comment %} TODO: add sumo link {% endcomment %}
           <a class="cta-button">Learn more</a>
         {% else %}
-          <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
+          <a class="cta-button" data-event="cta_click" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
         {% endif %}
       </div>
     </div>

@@ -11,14 +11,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
+from opentelemetry import trace
 
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
 from .tasks import check_link_safety, fetch_link_preview
+
+tracer = trace.get_tracer(__name__)
 
 
 def shares(request):
@@ -51,6 +55,12 @@ def view_share(request, shortcode):
                 shares.append(link)
             else:
                 link_count += 1
+
+    with tracer.start_as_current_span("share.view") as span:
+        span.set_attribute("share.shortcode", shortcode)
+        span.set_attribute("share.status", share.status)
+        span.set_attribute("share.link_count", link_count)
+        span.set_attribute("share.is_nested", share.parent_share_id is not None)
 
     return render(
         request,
@@ -125,15 +135,21 @@ def create_share(request):
 
     existing = Share.objects.filter(idempotency_key=idempotency_key).first()
     if existing:
-        url = request.build_absolute_uri(f"/{existing.shortcode}")
-        return JsonResponse({"url": url})
+        with tracer.start_as_current_span("share.create") as span:
+            span.set_attribute("share.outcome", "idempotent_duplicate")
+            span.set_attribute("share.shortcode", existing.shortcode)
+            url = request.build_absolute_uri(f"/{existing.shortcode}")
+            return JsonResponse({"url": url})
 
-    share = create_share_from_data(
-        data=data, user=request.user, idempotency_key=idempotency_key
-    )
-
-    url = request.build_absolute_uri(f"/{share.shortcode}")
-    return JsonResponse({"url": url}, status=201)
+    with tracer.start_as_current_span("share.create") as span:
+        span.set_attribute("share.outcome", "created")
+        span.set_attribute("share.link_count", len(data.get("links", [])))
+        share = create_share_from_data(
+            data=data, user=request.user, idempotency_key=idempotency_key
+        )
+        span.set_attribute("share.shortcode", share.shortcode)
+        url = request.build_absolute_uri(f"/{share.shortcode}")
+        return JsonResponse({"url": url}, status=201)
 
 
 VALID_REPORT_REASONS = {"copyright", "harmful", "spam", "other"}
@@ -151,13 +167,48 @@ def report_share(request, shortcode):
         return HttpResponseBadRequest(f"Invalid reason: {reason}")
 
     share = get_object_or_404(Share, shortcode=shortcode)
-    # Only transition ACTIVE shares
-    Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
-        status=ShareStatus.UNDER_REVIEW
-    )
+    with tracer.start_as_current_span("share.report") as span:
+        span.set_attribute("share.shortcode", shortcode)
+        span.set_attribute("report.reason", reason)
+        # Only transition ACTIVE shares
+        updated = Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
+            status=ShareStatus.UNDER_REVIEW
+        )
+        span.set_attribute("share.transitioned", updated > 0)
 
     messages.success(request, "Your report has been submitted.")
     return redirect(reverse("view_share", args=[shortcode]))
+
+
+VALID_CLIENT_EVENTS = {
+    "copy_link",
+    "link_click",
+    "report_dialog_open",
+    "cta_click",
+    "tou_click",
+    "aup_click",
+}
+
+
+@require_POST
+@csrf_exempt  # Telemetry only — no state mutation, so CSRF is unnecessary.
+def record_client_event(request):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return HttpResponseBadRequest("Invalid JSON")
+
+    event_type = data.get("event_type", "")
+    if event_type not in VALID_CLIENT_EVENTS:
+        return HttpResponseBadRequest(f"Unknown event type: {event_type}")
+
+    properties = data.get("properties", {})
+    with tracer.start_as_current_span(f"client.{event_type}") as span:
+        for key, value in properties.items():
+            if isinstance(value, (str, int, float, bool)):
+                span.set_attribute(key, value)
+
+    return HttpResponse(status=204)
 
 
 def auth_complete(request):
