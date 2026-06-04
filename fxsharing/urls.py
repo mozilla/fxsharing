@@ -32,4 +32,5 @@ urlpatterns = [
     ),
     path("accounts/", include("allauth.urls")),
     path("admin/", admin.site.urls),
+    re_path(r"^.*$", shares_views.page_not_found, {"exception": None}),
 ]
