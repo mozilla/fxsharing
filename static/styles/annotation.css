@@ -75,6 +75,12 @@ body {
   color: var(--text-color-deemphasized);
 }
 
+.note-card-comments {
+  margin-top: var(--space-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color);
+}
+
 /* --- CTA banner --- */
 .cta-banner {
   background: light-dark(var(--color-purple-0), var(--color-purple-90));

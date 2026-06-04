@@ -11,6 +11,11 @@ urlpatterns = [
     path("auth-complete", views.auth_complete, name="auth_complete"),
     path("api/v1/annotations/create", views.create_annotation, name="create_annotation"),
     path("api/v1/annotations/", views.list_annotations, name="list_annotations"),
+    path(
+        "api/v1/annotations/<str:shortcode>/comments",
+        views.annotation_comments,
+        name="annotation_comments",
+    ),
 ]
 
 if settings.DEBUG:

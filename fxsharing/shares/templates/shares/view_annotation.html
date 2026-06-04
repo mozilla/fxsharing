@@ -25,6 +25,9 @@
           </div>
           <div class="note-card-body">
             Page snapshot of <strong>{{ annotation.title }}</strong>
+            <div class="note-card-comments">
+              {{ comments|length }} comment{{ comments|length|pluralize }}
+            </div>
           </div>
         </div>
       </div>
@@ -50,10 +53,121 @@
         <a href="{{ annotation.source_url }}" target="_blank" rel="noopener">{{ annotation.source_url }}</a>
       </div>
       <iframe
+        id="snapshot"
         class="content-frame"
         sandbox="allow-same-origin"
         srcdoc="{{ annotation.html_content }}"
       ></iframe>
     </div>
+
+    {{ comments|json_script:"annotation-comments" }}
+
+    <script>
+      // Read-only comment pins. Authoring happens in the Firefox client; here we
+      // only render. Pins are injected into the same-origin srcdoc document so
+      // they scroll with the snapshot. x/y are fractions (0..1) of the
+      // snapshot's scroll dimensions.
+      (function () {
+        const comments = JSON.parse(
+          document.getElementById("annotation-comments").textContent
+        );
+        const iframe = document.getElementById("snapshot");
+
+        const PIN_STYLES = `
+          .fx-comment-pin {
+            position: absolute;
+            z-index: 2147483647;
+            width: 24px;
+            height: 24px;
+            margin: -12px 0 0 -12px;
+            border-radius: 50% 50% 50% 0;
+            background: #764edd;
+            color: #fff;
+            font: 600 13px/24px system-ui, sans-serif;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+          }
+          .fx-comment-bubble {
+            display: none;
+            position: absolute;
+            inset-inline-start: 28px;
+            top: -8px;
+            width: 240px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #fff;
+            color: #15141a;
+            font: 13px/1.4 system-ui, sans-serif;
+            text-align: start;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+          }
+          .fx-comment-pin.open .fx-comment-bubble { display: block; }
+          .fx-comment-author { font-weight: 600; }
+          .fx-comment-date { color: #5b5b66; font-size: 11px; margin-top: 2px; }
+          .fx-comment-body { margin-top: 4px; white-space: pre-wrap; }
+        `;
+
+        function render() {
+          let doc;
+          try {
+            doc = iframe.contentDocument;
+          } catch (e) {
+            return;
+          }
+          if (!doc || !doc.body || doc.getElementById("fx-comment-layer")) {
+            return;
+          }
+
+          const style = doc.createElement("style");
+          style.id = "fx-comment-layer";
+          style.textContent = PIN_STYLES;
+          (doc.head || doc.body).appendChild(style);
+
+          const scrollW = Math.max(
+            doc.documentElement.scrollWidth,
+            doc.body.scrollWidth
+          );
+          const scrollH = Math.max(
+            doc.documentElement.scrollHeight,
+            doc.body.scrollHeight
+          );
+
+          comments.forEach(function (c, i) {
+            const pin = doc.createElement("div");
+            pin.className = "fx-comment-pin";
+            pin.textContent = i + 1;
+            pin.style.left = c.x * scrollW + "px";
+            pin.style.top = c.y * scrollH + "px";
+
+            const bubble = doc.createElement("div");
+            bubble.className = "fx-comment-bubble";
+
+            const author = doc.createElement("div");
+            author.className = "fx-comment-author";
+            author.textContent = c.author;
+            const date = doc.createElement("div");
+            date.className = "fx-comment-date";
+            date.textContent = new Date(c.created_at).toLocaleString();
+            const body = doc.createElement("div");
+            body.className = "fx-comment-body";
+            body.textContent = c.body;
+
+            bubble.append(author, date, body);
+            pin.appendChild(bubble);
+            pin.addEventListener("click", function (ev) {
+              ev.stopPropagation();
+              pin.classList.toggle("open");
+            });
+            doc.body.appendChild(pin);
+          });
+        }
+
+        iframe.addEventListener("load", render);
+        if (iframe.contentDocument?.readyState === "complete") {
+          render();
+        }
+      })();
+    </script>
   </body>
 </html>

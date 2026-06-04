@@ -168,6 +168,39 @@ class Annotation(models.Model):
         )
 
 
+class Comment(models.Model):
+    """A comment left on an annotation, positioned absolutely on the captured
+    page. ``x`` and ``y`` are fractions (0..1) of the snapshot's scroll
+    dimensions so pins line up regardless of the viewer's window size; they are
+    not pegged to any DOM node."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    annotation = models.ForeignKey(
+        Annotation, related_name="comments", on_delete=models.CASCADE
+    )
+    author = models.CharField(max_length=120)
+    body = models.TextField()
+    x = models.FloatField(default=0.0)
+    y = models.FloatField(default=0.0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.author}: {self.body[:40]}"
+
+    def to_dict(self):
+        return dict(
+            id=str(self.id),
+            author=self.author,
+            body=self.body,
+            x=self.x,
+            y=self.y,
+            created_at=str(self.created_at),
+        )
+
+
 class DeadLetterTask(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task_name = models.CharField(max_length=255)

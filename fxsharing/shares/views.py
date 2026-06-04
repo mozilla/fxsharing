@@ -18,7 +18,14 @@ from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 from opentelemetry import trace
 
-from .models import ANNOTATION_EXPIRY_DAYS, Annotation, Link, Share, ShareStatus
+from .models import (
+    ANNOTATION_EXPIRY_DAYS,
+    Annotation,
+    Comment,
+    Link,
+    Share,
+    ShareStatus,
+)
 from .share_schema import share_schema
 from .tasks import check_link_safety, fetch_link_preview
 
@@ -262,8 +269,49 @@ def list_annotations(request):
     for a in annotations:
         d = a.to_dict()
         d["url"] = request.build_absolute_uri(f"/a/{a.shortcode}")
+        d["comment_count"] = a.comments.count()
         result.append(d)
     return JsonResponse({"annotations": result})
+
+
+@csrf_exempt
+def annotation_comments(request, shortcode):
+    """GET lists a annotation's comments; POST creates one (x/y are 0..1
+    fractions of the snapshot's scroll size)."""
+    annotation = get_object_or_404(Annotation, shortcode=shortcode)
+
+    if request.method == "GET":
+        return JsonResponse(
+            {"comments": [c.to_dict() for c in annotation.comments.all()]}
+        )
+
+    if request.method != "POST":
+        return HttpResponseBadRequest("Method not allowed")
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return HttpResponseBadRequest("Invalid JSON")
+
+    author = data.get("author", "").strip()
+    body = data.get("body", "").strip()
+    if not author or not body:
+        return HttpResponseBadRequest("Missing required fields: author, body")
+
+    def clamp(value):
+        try:
+            return max(0.0, min(1.0, float(value)))
+        except (TypeError, ValueError):
+            return 0.0
+
+    comment = Comment.objects.create(
+        annotation=annotation,
+        author=author[:120],
+        body=body,
+        x=clamp(data.get("x")),
+        y=clamp(data.get("y")),
+    )
+    return JsonResponse(comment.to_dict(), status=201)
 
 
 def view_annotation(request, shortcode):
@@ -272,11 +320,13 @@ def view_annotation(request, shortcode):
         raise Http404
     ua = request.META.get("HTTP_USER_AGENT", "")
     is_firefox = "Firefox/" in ua
+    comments = [c.to_dict() for c in annotation.comments.all()]
     return render(
         request,
         "shares/view_annotation.html",
         {
             "annotation": annotation,
             "is_firefox": is_firefox,
+            "comments": comments,
         },
     )
