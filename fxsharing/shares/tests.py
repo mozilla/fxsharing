@@ -93,8 +93,9 @@ class TestLinkModel(TestCase):
     def test_preview_fields_default_to_blank(self):
         link = Link.objects.create(share=self.share, url="https://example.com")
         assert link.preview_title == ""
-        assert link.preview_description == ""
-        assert link.preview_image_url == ""
+        assert link.preview_description is None
+        assert link.preview_image_url is None
+        assert link.favicon_url == ""
 
     def test_to_dict_includes_new_fields(self):
         link = Link.objects.create(
@@ -103,12 +104,14 @@ class TestLinkModel(TestCase):
             preview_title="Example",
             preview_description="A site",
             preview_image_url="https://example.com/img.png",
+            favicon_url="https://example.com/favicon.png",
         )
         d = link.to_dict()
         assert d["safety_status"] == SafetyStatus.UNKNOWN
         assert d["preview_title"] == "Example"
         assert d["preview_description"] == "A site"
         assert d["preview_image_url"] == "https://example.com/img.png"
+        assert d["favicon_url"] == "https://example.com/favicon.png"
 
 
 class TestCreateShare(TestCase):
