@@ -27,9 +27,9 @@ CONTENT_TYPE_TO_EXT = {
 
 def download_and_store_favicon(favicon_url, link_id, headers):
     """Download favicon and upload to GCS. Returns public URL or None on failure."""
-    bucket_name = settings.GCS_FAVICON_BUCKET
+    bucket_name = settings.GCS_IMAGE_BUCKET
     if not bucket_name:
-        logger.info("GCS_FAVICON_BUCKET not configured; skipping favicon upload")
+        logger.info("GCS_IMAGE_BUCKET not configured; skipping favicon upload")
         return None
 
     try:
