@@ -1,9 +1,9 @@
 import { MozLitElement } from "../dependencies/lit-utils.mjs";
-import { html, css } from "../dependencies/lit.all.mjs";
+import { css, html } from "../dependencies/lit.all.mjs";
 import "./moz-button/moz-button.mjs";
 import "./moz-card/moz-card.mjs";
-import "./moz-radio-group/moz-radio-group.mjs";
 import "./moz-message-bar/moz-message-bar.mjs";
+import "./moz-radio-group/moz-radio-group.mjs";
 
 function faviconUrl(link) {
   if (link.favicon_url) {
@@ -149,8 +149,12 @@ class MozShare extends MozLitElement {
 
   static styles = css`
     @keyframes skeleton-shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
+      }
     }
 
     .skeleton-bar,
@@ -187,7 +191,10 @@ class MozShare extends MozLitElement {
       align-items: center;
       gap: var(--space-large);
       padding: var(--space-large);
-      background: light-dark(var(--color-white-alpha-20), var(--color-black-alpha-20));
+      background: light-dark(
+        var(--color-white-alpha-20),
+        var(--color-black-alpha-20)
+      );
       border: var(--border-width) solid var(--border-color-card);
       border-radius: var(--border-radius-small);
       box-shadow: var(--box-shadow-card);
@@ -381,6 +388,26 @@ class MozShare extends MozLitElement {
     }
   }
 
+  /**
+   * We currently only show a flattened list of links so we have to flatten all
+   * nested shares/links into an array of links for now.
+   */
+  get flatLinks() {
+    let links = [];
+    let shares = [this.share];
+    while (shares.length) {
+      let share = shares.shift();
+      for (let link of share.links) {
+        if (link.links) {
+          shares.push(link);
+        } else {
+          links.push(link);
+        }
+      }
+    }
+    return links;
+  }
+
   copyLink() {
     navigator.clipboard.writeText(location.href);
     if (this._copyBtn) {
@@ -408,9 +435,19 @@ class MozShare extends MozLitElement {
           class="footer-link"
           ?disabled=${loading}
           @click=${this.openReportDialog}
-        >Report unsafe page</button>
-        <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/terms/services/">Terms of use</a>
-        <a class="footer-link" href="https://www.mozilla.org/en-US/about/legal/acceptable-use/">Acceptable use policy</a>
+        >
+          Report unsafe page
+        </button>
+        <a
+          class="footer-link"
+          href="https://www.mozilla.org/en-US/about/legal/terms/services/"
+          >Terms of use</a
+        >
+        <a
+          class="footer-link"
+          href="https://www.mozilla.org/en-US/about/legal/acceptable-use/"
+          >Acceptable use policy</a
+        >
       </div>
     `;
   }
@@ -433,9 +470,7 @@ class MozShare extends MozLitElement {
               `,
             )}
           </div>
-          <footer class="share-footer">
-            ${this.renderFooterLinks(true)}
-          </footer>
+          <footer class="share-footer">${this.renderFooterLinks(true)}</footer>
         </div>
       </div>
     `;
@@ -450,7 +485,7 @@ class MozShare extends MozLitElement {
       <div class="share-page">
         <div class="share-content">
           <div class="link-list">
-            ${this.share.links.map(
+            ${this.flatLinks.map(
               (link) => html`<moz-link .link=${link}></moz-link>`,
             )}
           </div>
