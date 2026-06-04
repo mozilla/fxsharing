@@ -365,7 +365,12 @@ class TestRecordClientEvent(TestCase):
         assert response.status_code == 204
 
     def test_all_valid_event_types_accepted(self):
-        for event_type in ("copy_link", "link_click", "report_dialog_open", "cta_click"):
+        for event_type in (
+            "copy_link",
+            "link_click",
+            "report_dialog_open",
+            "cta_click",
+        ):
             response = self.client.post(
                 reverse("record_client_event"),
                 data=json.dumps({"event_type": event_type, "properties": {}}),
