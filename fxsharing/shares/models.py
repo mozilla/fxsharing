@@ -144,6 +144,30 @@ class Link(models.Model):
         )
 
 
+ANNOTATION_EXPIRY_DAYS = 7
+
+
+class Annotation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shortcode = models.CharField(max_length=16, unique=True, default=generate_shortcode)
+    title = models.CharField(max_length=255)
+    source_url = models.URLField(max_length=4000)
+    html_content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.title
+
+    def to_dict(self):
+        return dict(
+            shortcode=self.shortcode,
+            title=self.title,
+            source_url=self.source_url,
+            created_at=str(self.created_at),
+        )
+
+
 class DeadLetterTask(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task_name = models.CharField(max_length=255)

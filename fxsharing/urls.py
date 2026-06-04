@@ -27,6 +27,11 @@ urlpatterns = [
         shares_views.view_share,
         name="view_share",
     ),
+    re_path(
+        r"^a/(?P<shortcode>[A-Za-z0-9]{10})$",
+        shares_views.view_annotation,
+        name="view_annotation",
+    ),
     path("accounts/", include("allauth.urls")),
     path("admin/", admin.site.urls),
 ]

@@ -137,6 +137,9 @@ DATABASES = {
 
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
 
+# Allow large HTML blobs for page annotations (default 2.5MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)

@@ -18,7 +18,7 @@ from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 from opentelemetry import trace
 
-from .models import Link, Share, ShareStatus
+from .models import ANNOTATION_EXPIRY_DAYS, Annotation, Link, Share, ShareStatus
 from .share_schema import share_schema
 from .tasks import check_link_safety, fetch_link_preview
 
@@ -46,7 +46,9 @@ def view_share(request, shortcode):
         span.set_attribute("share.status", share.status)
         span.set_attribute("share.link_count", share.links.count())
         span.set_attribute("share.is_nested", share.parent_share_id is not None)
-        return render(request, "shares/view_share.html", {"share_data": share.to_dict()})
+        return render(
+            request, "shares/view_share.html", {"share_data": share.to_dict()}
+        )
 
 
 SHARE_EXPIRY_DAYS = 7
@@ -158,8 +160,8 @@ def report_share(request, shortcode):
 VALID_CLIENT_EVENTS = {"copy_link", "link_click", "report_dialog_open", "cta_click"}
 
 
+@csrf_exempt  # Telemetry only
 @require_POST
-@csrf_exempt  # Telemetry only — no state mutation, so CSRF is unnecessary.
 def record_client_event(request):
     try:
         data = json.loads(request.body)
@@ -224,3 +226,52 @@ def dev_login(request):
         share_count=models.Count("shares")
     ).order_by("fxa_id")
     return render(request, "shares/dev_login.html", {"dev_users": users})
+
+
+@csrf_exempt
+@require_POST
+def create_annotation(request):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return HttpResponseBadRequest("Invalid JSON")
+
+    title = data.get("title", "").strip()
+    source_url = data.get("source_url", "").strip()
+    html_content = data.get("html_content", "")
+
+    if not title or not source_url or not html_content:
+        return HttpResponseBadRequest("Missing required fields: title, source_url, html_content")
+
+    annotation = Annotation.objects.create(
+        title=title,
+        source_url=source_url,
+        html_content=html_content,
+        expires_at=timezone.now() + timedelta(days=ANNOTATION_EXPIRY_DAYS),
+    )
+    url = request.build_absolute_uri(f"/a/{annotation.shortcode}")
+    return JsonResponse({"url": url, "shortcode": annotation.shortcode}, status=201)
+
+
+def list_annotations(request):
+    annotations = (
+        Annotation.objects.filter(expires_at__gt=timezone.now())
+        .order_by("-created_at")[:50]
+    )
+    result = []
+    for a in annotations:
+        d = a.to_dict()
+        d["url"] = request.build_absolute_uri(f"/a/{a.shortcode}")
+        result.append(d)
+    return JsonResponse({"annotations": result})
+
+
+def view_annotation(request, shortcode):
+    annotation = get_object_or_404(Annotation, shortcode=shortcode)
+    if annotation.expires_at and annotation.expires_at < timezone.now():
+        raise Http404
+    return render(
+        request,
+        "shares/view_annotation.html",
+        {"annotation": annotation},
+    )

@@ -9,6 +9,8 @@ urlpatterns = [
     path("event", views.record_client_event, name="record_client_event"),
     path("report/<str:shortcode>", views.report_share, name="report_share"),
     path("auth-complete", views.auth_complete, name="auth_complete"),
+    path("api/v1/annotations/create", views.create_annotation, name="create_annotation"),
+    path("api/v1/annotations/", views.list_annotations, name="list_annotations"),
 ]
 
 if settings.DEBUG:
