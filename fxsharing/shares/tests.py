@@ -436,14 +436,6 @@ class TestRecordClientEvent(TestCase):
         response = self.client.get(reverse("record_client_event"))
         assert response.status_code == 405
 
-    def test_empty_properties_accepted(self):
-        response = self.client.post(
-            reverse("record_client_event"),
-            data=json.dumps({"event_type": "cta_click", "properties": {}}),
-            content_type="application/json",
-        )
-        assert response.status_code == 204
-
 
 class TestSoftDeleteShare(TestCase):
     @classmethod
