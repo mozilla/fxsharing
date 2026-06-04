@@ -2,9 +2,11 @@ import hashlib
 import json
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
-from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.contrib.auth import get_user_model, login, logout
+from django.db import models, transaction
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -143,3 +145,39 @@ def landing(request):
     ua = request.META.get("HTTP_USER_AGENT", "")
     is_firefox = "Firefox/" in ua
     return render(request, "shares/landing.html", {"show_firefox_cta": not is_firefox})
+
+
+def dev_login(request):
+    """DEBUG-only flow to log in as any (seed) user without real FxA OAuth.
+
+    Reachable only when ``DEBUG=True`` (the URL is registered conditionally and
+    this view also guards directly). Pairs with the ``seed`` management command:
+    seed the DB, then pick a user here to log in as for manual QA.
+    """
+    if not settings.DEBUG:
+        raise Http404
+
+    user_model = get_user_model()
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "logout":
+            logout(request)
+            request._fxsharing_logged_out = True
+            messages.success(request, "Logged out.")
+            return redirect(reverse("dev_login"))
+
+        user = get_object_or_404(user_model.all_objects, pk=request.POST.get("user_id"))
+        login(
+            request,
+            user,
+            backend="django.contrib.auth.backends.ModelBackend",
+        )
+        request._fxsharing_logged_in = True
+        messages.success(request, f"Logged in as {user.fxa_id}.")
+        return redirect(reverse("dev_login"))
+
+    users = user_model.all_objects.annotate(
+        share_count=models.Count("shares")
+    ).order_by("fxa_id")
+    return render(request, "shares/dev_login.html", {"dev_users": users})

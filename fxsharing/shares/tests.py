@@ -1,11 +1,15 @@
+import importlib
 import json
+from io import StringIO
 from unittest.mock import MagicMock
 
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
-from django.http import HttpResponse
-from django.test import RequestFactory, TestCase
-from django.urls import reverse
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.http import Http404, HttpResponse
+from django.test import RequestFactory, TestCase, override_settings
+from django.urls import clear_url_caches, reverse
 
 from allauth.account.signals import user_logged_in, user_logged_out
 from celery import shared_task
@@ -19,6 +23,7 @@ from fxsharing.shares.models import (
     ShareStatus,
 )
 from fxsharing.shares.tasks import BaseTaskWithRetry
+from fxsharing.shares.views import dev_login
 
 User = get_user_model()
 
@@ -555,3 +560,135 @@ class TestBaseTaskWithRetry(TestCase):
         dlq = DeadLetterTask.objects.get(task_name=_always_failing_task.name)
         assert dlq.exception_class == "ValueError"
         assert dlq.args == ["payload"]
+
+
+@override_settings(DEBUG=True)
+class TestSeedCommand(TestCase):
+    @staticmethod
+    def _run():
+        out = StringIO()
+        call_command("seed", stdout=out)
+        return out.getvalue()
+
+    def test_creates_expected_users(self):
+        self._run()
+        seed_users = User.all_objects.filter(fxa_id__startswith="seed-")
+        assert seed_users.count() == 5
+        assert User.all_objects.get(fxa_id="seed-bob").is_banned
+        assert User.all_objects.get(fxa_id="seed-admin").is_superuser
+        # Carol is a soft-deleted user.
+        assert User.all_objects.get(fxa_id="seed-carol").deleted_at is not None
+
+    def test_creates_max_link_share(self):
+        self._run()
+        share = Share.all_objects.get(title="Max links collection")
+        assert Link.all_objects.filter(share=share).count() == 30
+
+    def test_creates_soft_deleted_share(self):
+        self._run()
+        deleted = Share.all_objects.get(title="Deleted draft")
+        assert deleted.deleted_at is not None
+        # The default manager hides soft-deleted shares.
+        assert not Share.objects.filter(title="Deleted draft").exists()
+
+    def test_creates_nested_shares(self):
+        self._run()
+        parent = Share.all_objects.get(title="Nested research")
+        assert parent.nested_shares.count() == 2
+
+    def test_links_have_varied_safety_status(self):
+        self._run()
+        statuses = set(
+            Link.all_objects.values_list("safety_status", flat=True).distinct()
+        )
+        assert SafetyStatus.SAFE in statuses
+        assert SafetyStatus.UNSAFE in statuses
+        assert SafetyStatus.UNKNOWN in statuses
+
+    def test_is_idempotent(self):
+        self._run()
+        first = User.all_objects.filter(fxa_id__startswith="seed-").count()
+        self._run()
+        second = User.all_objects.filter(fxa_id__startswith="seed-").count()
+        assert first == second == 5
+        # Re-running must not duplicate shares.
+        assert Share.all_objects.filter(title="Max links collection").count() == 1
+
+    def test_prints_user_login_summary(self):
+        output = self._run()
+        for fxa_id in (
+            "seed-admin",
+            "seed-alice",
+            "seed-bob",
+            "seed-carol",
+            "seed-dave",
+        ):
+            assert fxa_id in output
+        assert "/dev-login" in output
+
+    def test_refuses_without_debug(self):
+        with override_settings(DEBUG=False):
+            with self.assertRaises(CommandError):
+                call_command("seed", stdout=StringIO())
+
+
+@override_settings(DEBUG=True)
+class TestDevLoginView(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # super().setUpClass() enables the DEBUG=True override; reload the URL
+        # modules afterwards so the conditional /dev-login route is registered.
+        super().setUpClass()
+        from fxsharing import urls as project_urls
+        from fxsharing.shares import urls as shares_urls
+
+        importlib.reload(shares_urls)
+        importlib.reload(project_urls)
+        clear_url_caches()
+
+    @classmethod
+    def tearDownClass(cls):
+        from fxsharing import urls as project_urls
+        from fxsharing.shares import urls as shares_urls
+
+        # Disable the override first, then reload so module-level urlpatterns
+        # reflect DEBUG=False again for other tests.
+        super().tearDownClass()
+        importlib.reload(shares_urls)
+        importlib.reload(project_urls)
+        clear_url_caches()
+
+    def setUp(self):
+        self.user = User.objects.create_user(fxa_id="seed-devlogin")
+
+    def test_get_lists_users(self):
+        resp = self.client.get("/dev-login")
+        assert resp.status_code == 200
+        self.assertContains(resp, "seed-devlogin")
+
+    def test_post_logs_in_and_sets_cookie(self):
+        resp = self.client.post("/dev-login", {"user_id": str(self.user.id)})
+        assert resp.status_code == 302
+        assert resp.wsgi_request.user.is_authenticated
+        assert resp.wsgi_request.user.fxa_id == "seed-devlogin"
+        assert resp.cookies.get("auth")
+
+    def test_logout(self):
+        self.client.post("/dev-login", {"user_id": str(self.user.id)})
+        resp = self.client.post("/dev-login", {"action": "logout"})
+        assert resp.status_code == 302
+        assert not resp.wsgi_request.user.is_authenticated
+
+    def test_unknown_user_404s(self):
+        resp = self.client.post(
+            "/dev-login", {"user_id": "00000000-0000-0000-0000-000000000000"}
+        )
+        assert resp.status_code == 404
+
+
+class TestDevLoginDisabled(TestCase):
+    def test_raises_404_when_not_debug(self):
+        request = RequestFactory().get("/dev-login")
+        with override_settings(DEBUG=False):
+            with self.assertRaises(Http404):
+                dev_login(request)

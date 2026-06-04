@@ -6,6 +6,7 @@ help:
 	@echo "  setup    Install dependencies and create .env from .env.example"
 	@echo "  run      Start the development server"
 	@echo "  migrate  Apply database migrations"
+	@echo "  seed     Seed sample data — Docker DB if the stack is up, else local (DEBUG only)"
 	@echo "  test     Run tests with pytest"
 	@echo "  lint     Run ruff linter and format check"
 	@echo "  format   Auto-format and fix lint issues with ruff"
@@ -24,6 +25,15 @@ run:
 
 migrate:
 	uv run python manage.py migrate
+
+seed:
+	@if docker compose ps --status running --services 2>/dev/null | grep -qx app; then \
+		echo "Seeding the Docker database (app container)..."; \
+		docker compose exec app python manage.py seed; \
+	else \
+		echo "Seeding the local database..."; \
+		uv run python manage.py seed; \
+	fi
 
 test:
 	uv run pytest
