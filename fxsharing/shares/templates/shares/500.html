@@ -1,0 +1,30 @@
+{% extends "shares/callout_page.html" %}
+{% load static %}
+
+{% block title %}Something went wrong{% endblock %}
+
+{% block callout_extra_scripts %}
+  <script src="{% static 'components/moz-button/moz-button.mjs' %}" type="module"></script>
+{% endblock %}
+
+{% block image_src %}{% static 'assets/kit-error.svg' %}{% endblock %}
+
+{% block heading %}Looks like there's a problem with this page{% endblock %}
+{% block body %}
+  {% if is_firefox %}
+    <p>This page isn't available right now. Try again later.</p>
+  {% else %}
+    <p>This page isn't available right now. Try again later, or download Firefox to create a new page of sharable links.</p>
+  {% endif %}
+{% endblock %}
+
+{% block cta %}
+  {% if is_firefox %}
+    <moz-button type="primary" onclick="window.location.reload()">Try again</moz-button>
+  {% else %}
+    <div class="error-cta-group">
+      <moz-button type="default" onclick="window.location.reload()">Try again</moz-button>
+      <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Download Firefox</a>
+    </div>
+  {% endif %}
+{% endblock %}

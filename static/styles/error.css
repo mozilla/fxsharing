@@ -1,0 +1,89 @@
+.site-header {
+  padding-block-start: 75px;
+}
+
+
+.error-callout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xxlarge);
+  padding: var(--space-xlarge);
+  color: var(--text-color);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.error-callout-image {
+  flex-shrink: 0;
+  width: 220px;
+  height: 220px;
+}
+
+.error-callout-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-small);
+  align-items: center;
+}
+
+.error-callout-copy .callout-copy-body p {
+  margin-block-end: var(--space-large);
+}
+
+.error-callout-copy moz-button {
+  margin-block-start: var(--space-xlarge);
+}
+
+.error-cta-group {
+  display: flex;
+  gap: var(--space-large);
+  margin-block-start: var(--space-xlarge);
+  align-items: center;
+  justify-content: center;
+}
+
+.error-cta-group .cta-button {
+  margin-block-start: 0;
+}
+
+.error-cta-group moz-button {
+  margin-block-start: 0;
+}
+
+.error-callout-copy h1 {
+  margin-block: 0 var(--space-large);
+  font-size: var(--heading-font-size-xlarge);
+  font-weight: var(--heading-font-weight);
+}
+
+.error-callout-copy p {
+  margin: 0;
+  font-size: var(--font-size-root);
+}
+
+.error-callout-copy .cta-button {
+  align-self: center;
+}
+
+@media (min-width: 820px) {
+  .error-callout {
+    flex-direction: row;
+    padding: 80px;
+    gap: 40px;
+    text-align: start;
+
+    & .error-callout-copy {
+      align-items: flex-start;
+      padding-inline: var(--space-xlarge);
+
+      & .cta-button {
+        align-self: flex-start;
+      }
+    }
+
+    & .error-cta-group {
+      justify-content: flex-start;
+    }
+  }
+}

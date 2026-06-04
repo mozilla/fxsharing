@@ -1,15 +1,18 @@
 import importlib
 import json
+from datetime import timedelta
 from io import StringIO
 from unittest.mock import MagicMock
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages import get_messages
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.http import Http404, HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import clear_url_caches, reverse
+from django.utils import timezone
 
 from allauth.account.signals import user_logged_in, user_logged_out
 from celery import shared_task
@@ -23,7 +26,7 @@ from fxsharing.shares.models import (
     ShareStatus,
 )
 from fxsharing.shares.tasks import BaseTaskWithRetry
-from fxsharing.shares.views import dev_login
+from fxsharing.shares.views import dev_login, page_not_found, server_error
 
 User = get_user_model()
 
@@ -319,6 +322,41 @@ class TestViewShare(TestCase):
         response = self.client.get(reverse("view_share", args=[share.shortcode]))
         assert response.status_code == 200
 
+    def test_expired_status_returns_410(self):
+        share = Share.objects.create(
+            title="Share", user=self.user, status=ShareStatus.EXPIRED
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 410
+        assert b"aren't available" in response.content
+
+    def test_blocked_status_returns_410(self):
+        share = Share.objects.create(
+            title="Share", user=self.user, status=ShareStatus.BLOCKED
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 410
+        assert b"aren't available" in response.content
+
+    def test_past_expires_at_returns_410(self):
+        share = Share.objects.create(
+            title="Timed-out Share",
+            user=self.user,
+            expires_at=timezone.now() - timedelta(seconds=1),
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 410
+        assert b"aren't available" in response.content
+
+    def test_future_expires_at_returns_200(self):
+        share = Share.objects.create(
+            title="Active Share",
+            user=self.user,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert response.status_code == 200
+
 
 class TestReportShare(TestCase):
     @classmethod
@@ -429,18 +467,25 @@ class TestLandingView(TestCase):
             reverse("landing"),
             HTTP_USER_AGENT="Chrome/109.0",
         )
-        assert response.context["show_firefox_cta"] is True
+        assert response.context["is_firefox"] is False
 
     def test_firefox_ua_hides_cta(self):
         response = self.client.get(
             reverse("landing"),
             HTTP_USER_AGENT="Mozilla/5.0 Gecko/20100101 Firefox/109.0",
         )
-        assert response.context["show_firefox_cta"] is False
+        assert response.context["is_firefox"] is True
+
+    def test_firefox_ios_ua_hides_cta(self):
+        response = self.client.get(
+            reverse("landing"),
+            HTTP_USER_AGENT="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/136.0 Mobile/15E148 Safari/604.1",
+        )
+        assert response.context["is_firefox"] is True
 
     def test_missing_ua_shows_cta(self):
         response = self.client.get(reverse("landing"))
-        assert response.context["show_firefox_cta"] is True
+        assert response.context["is_firefox"] is False
 
 
 class TestDockerflowEndpoints(TestCase):
@@ -692,3 +737,29 @@ class TestDevLoginDisabled(TestCase):
         with override_settings(DEBUG=False):
             with self.assertRaises(Http404):
                 dev_login(request)
+
+
+class TestErrorPages(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _request(self):
+        request = self.factory.get("/")
+        request.user = AnonymousUser()
+        return request
+
+    def test_404_returns_404_status(self):
+        response = page_not_found(self._request(), exception=None)
+        assert response.status_code == 404
+
+    def test_404_contains_expected_copy(self):
+        response = page_not_found(self._request(), exception=None)
+        assert b"can't find that page" in response.content
+
+    def test_500_returns_500_status(self):
+        response = server_error(self._request())
+        assert response.status_code == 500
+
+    def test_500_contains_expected_copy(self):
+        response = server_error(self._request())
+        assert b"problem with this page" in response.content

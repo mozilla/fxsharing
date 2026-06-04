@@ -20,6 +20,9 @@ from django.urls import include, path, re_path
 
 from fxsharing.shares import views as shares_views
 
+handler404 = "fxsharing.shares.views.page_not_found"
+handler500 = "fxsharing.shares.views.server_error"
+
 urlpatterns = [
     path("", include("fxsharing.shares.urls")),
     re_path(
@@ -29,4 +32,5 @@ urlpatterns = [
     ),
     path("accounts/", include("allauth.urls")),
     path("admin/", admin.site.urls),
+    re_path(r"^.*$", shares_views.page_not_found, {"exception": None}),
 ]
