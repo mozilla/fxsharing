@@ -180,7 +180,7 @@ def report_share(request, shortcode):
     return redirect(reverse("view_share", args=[shortcode]))
 
 
-VALID_CLIENT_EVENTS = {"copy_link", "link_click", "report_dialog_open", "cta_click"}
+VALID_CLIENT_EVENTS = {"copy_link", "link_click", "report_dialog_open", "cta_click", "tou_click", "aup_click"}
 
 
 @require_POST

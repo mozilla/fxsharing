@@ -449,11 +449,13 @@ class MozShare extends MozLitElement {
         <a
           class="footer-link"
           href="https://www.mozilla.org/en-US/about/legal/terms/services/"
+          @click=${() => recordEvent("tou_click", {})}
           >Terms of use</a
         >
         <a
           class="footer-link"
           href="https://www.mozilla.org/en-US/about/legal/acceptable-use/"
+          @click=${() => recordEvent("aup_click", {})}
           >Acceptable use policy</a
         >
       </div>

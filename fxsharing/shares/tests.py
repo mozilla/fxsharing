@@ -408,6 +408,8 @@ class TestRecordClientEvent(TestCase):
             "link_click",
             "report_dialog_open",
             "cta_click",
+            "tou_click",
+            "aup_click",
         ):
             response = self.client.post(
                 reverse("record_client_event"),
