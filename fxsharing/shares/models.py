@@ -137,11 +137,10 @@ class Link(models.Model):
         choices=SafetyStatus,
         default=SafetyStatus.UNKNOWN,
     )
-    favicon_url = models.URLField(max_length=2048, blank=True)
     preview_title = models.CharField(max_length=255, blank=True)
     preview_description = models.TextField(null=True)
     preview_image_url = models.URLField(max_length=2048, null=True)
-    favicon_image_url = models.URLField(max_length=2048, null=True)
+    favicon_url = models.URLField(max_length=2048, blank=True)
 
     objects = LinkManager()
     all_objects = models.Manager()
@@ -156,11 +155,10 @@ class Link(models.Model):
             url=self.url,
             title=self.title,
             safety_status=self.safety_status,
-            favicon_url=self.favicon_url,
             preview_title=self.preview_title,
             preview_description=self.preview_description,
             preview_image_url=self.preview_image_url,
-            favicon_image_url=self.favicon_image_url,
+            favicon_url=self.favicon_url,
         )
 
 
