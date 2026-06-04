@@ -195,3 +195,6 @@ Thumbs.db
 
 # Local Redis snapshots (created when running redis-server natively)
 *.rdb
+
+# gloud credentials for local bucket auth
+.gcloud_credentials
