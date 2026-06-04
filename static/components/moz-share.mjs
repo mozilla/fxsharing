@@ -4,6 +4,7 @@ import "./moz-button/moz-button.mjs";
 import "./moz-card/moz-card.mjs";
 import "./moz-radio-group/moz-radio-group.mjs";
 import "./moz-message-bar/moz-message-bar.mjs";
+import { recordEvent } from "./telemetry.mjs";
 
 function faviconUrl(link) {
   if (link.favicon_url) {
@@ -85,6 +86,10 @@ class MozLink extends MozLitElement {
     this.faviconError = true;
   }
 
+  handleLinkClick() {
+    recordEvent("link_click", {});
+  }
+
   render() {
     if (!this.link?.url) {
       return null;
@@ -99,6 +104,7 @@ class MozLink extends MozLitElement {
           href=${this.link.url}
           target="_blank"
           rel="noopener noreferrer"
+          @click=${this.handleLinkClick}
         >
           <div class="favicon-container">
             <picture>
@@ -476,6 +482,7 @@ class MozShare extends MozLitElement {
 
   copyLink() {
     navigator.clipboard.writeText(location.href);
+    recordEvent("copy_link", {});
     this.copyButton.textContent = "Link Copied";
     this.copyButton.iconSrc = "/static/assets/check-filled.svg";
     setTimeout(() => {
@@ -485,6 +492,7 @@ class MozShare extends MozLitElement {
   }
 
   openReportDialog() {
+    recordEvent("report_dialog_open", {});
     this.reportDialog.showModal();
   }
 

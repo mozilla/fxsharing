@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from jsonschema import ValidationError, validate
@@ -155,6 +156,30 @@ def report_share(request, shortcode):
 
     messages.success(request, "Your report has been submitted.")
     return redirect(reverse("view_share", args=[shortcode]))
+
+
+VALID_CLIENT_EVENTS = {"copy_link", "link_click", "report_dialog_open", "cta_click"}
+
+
+@require_POST
+@csrf_exempt  # Telemetry only — no state mutation, so CSRF is unnecessary.
+def record_client_event(request):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return HttpResponseBadRequest("Invalid JSON")
+
+    event_type = data.get("event_type", "")
+    if event_type not in VALID_CLIENT_EVENTS:
+        return HttpResponseBadRequest(f"Unknown event type: {event_type}")
+
+    properties = data.get("properties", {})
+    with tracer.start_as_current_span(f"client.{event_type}") as span:
+        for key, value in properties.items():
+            if isinstance(value, (str, int, float, bool)):
+                span.set_attribute(key, value)
+
+    return HttpResponse(status=204)
 
 
 def auth_complete(request):

@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
     <link rel="stylesheet" href="{% static 'styles/landing.css' %}" />
     <script src="{% static 'components/moz-card/moz-card.mjs' %}" type="module"></script>
+    <script src="{% static 'components/telemetry.mjs' %}" type="module"></script>
   </head>
 
   <body>
@@ -22,7 +23,7 @@
             <h1>Share tabs in a snap</h1>
             <p>Create an easy-to-share page of bookmarks you can send to anyone.</p>
             {% if show_firefox_cta %}
-              <a class="cta-button" href="https://www.mozilla.org/firefox/">Try Firefox</a>
+              <a class="cta-button" data-event="cta_click" href="https://www.mozilla.org/firefox/">Try Firefox</a>
             {% endif %}
           </div>
         </div>

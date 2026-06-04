@@ -355,6 +355,53 @@ class TestReportShare(TestCase):
         assert response.status_code == 400
 
 
+class TestRecordClientEvent(TestCase):
+    def test_valid_event_returns_204(self):
+        response = self.client.post(
+            reverse("record_client_event"),
+            data=json.dumps({"event_type": "copy_link", "properties": {}}),
+            content_type="application/json",
+        )
+        assert response.status_code == 204
+
+    def test_all_valid_event_types_accepted(self):
+        for event_type in ("copy_link", "link_click", "report_dialog_open", "cta_click"):
+            response = self.client.post(
+                reverse("record_client_event"),
+                data=json.dumps({"event_type": event_type, "properties": {}}),
+                content_type="application/json",
+            )
+            assert response.status_code == 204, f"Expected 204 for {event_type}"
+
+    def test_unknown_event_type_returns_400(self):
+        response = self.client.post(
+            reverse("record_client_event"),
+            data=json.dumps({"event_type": "unknown_event", "properties": {}}),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+    def test_invalid_json_returns_400(self):
+        response = self.client.post(
+            reverse("record_client_event"),
+            data="not json",
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+    def test_get_request_returns_405(self):
+        response = self.client.get(reverse("record_client_event"))
+        assert response.status_code == 405
+
+    def test_empty_properties_accepted(self):
+        response = self.client.post(
+            reverse("record_client_event"),
+            data=json.dumps({"event_type": "cta_click", "properties": {}}),
+            content_type="application/json",
+        )
+        assert response.status_code == 204
+
+
 class TestSoftDeleteShare(TestCase):
     @classmethod
     def setUpTestData(cls):
