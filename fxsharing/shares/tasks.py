@@ -214,7 +214,7 @@ def fetch_link_preview(link_id):
     # Only storing favicons for now, preview images will come later.
     Link.objects.filter(id=link_id).update(
         preview_title=title or link.title,
-        preview_description=description or "No description found",
+        preview_description=description or None,
         favicon_url=stored_favicon,
     )
 
