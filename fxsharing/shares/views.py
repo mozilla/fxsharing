@@ -270,8 +270,13 @@ def view_annotation(request, shortcode):
     annotation = get_object_or_404(Annotation, shortcode=shortcode)
     if annotation.expires_at and annotation.expires_at < timezone.now():
         raise Http404
+    ua = request.META.get("HTTP_USER_AGENT", "")
+    is_firefox = "Firefox/" in ua
     return render(
         request,
         "shares/view_annotation.html",
-        {"annotation": annotation},
+        {
+            "annotation": annotation,
+            "is_firefox": is_firefox,
+        },
     )

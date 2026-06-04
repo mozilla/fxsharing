@@ -6,49 +6,54 @@
     <title>{{ annotation.title }}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
-    <style>
-      body {
-        margin: 0;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        font-family: system-ui, sans-serif;
-      }
-      .annotation-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 8px 16px;
-        background: #f5f4f9;
-        border-bottom: 1px solid #d2c8ec;
-        font-size: 13px;
-        color: #584a7d;
-        flex-shrink: 0;
-      }
-      .annotation-header a {
-        color: #764edd;
-        text-decoration: none;
-      }
-      .annotation-header a:hover {
-        text-decoration: underline;
-      }
-      .annotation-frame {
-        flex: 1;
-        border: none;
-        width: 100%;
-      }
-    </style>
+    <link rel="stylesheet" href="{% static 'styles/annotation.css' %}" />
   </head>
+
   <body>
-    <div class="annotation-header">
-      <span>{{ annotation.title }}</span>
-      <span>&mdash;</span>
-      <a href="{{ annotation.source_url }}" target="_blank" rel="noopener">{{ annotation.source_url }}</a>
+    <!-- Left sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <img src="{% static 'assets/logo.svg' %}" alt="Firefox" />
+        <span>Notes made in Firefox</span>
+      </div>
+
+      <div class="notes-section">
+        <div class="note-card">
+          <div class="note-card-header">
+            <span>Annotation</span>
+            <span class="note-card-date">{{ annotation.created_at|date:"M d, Y" }}</span>
+          </div>
+          <div class="note-card-body">
+            Page snapshot of <strong>{{ annotation.title }}</strong>
+          </div>
+        </div>
+      </div>
+
+      {% if not is_firefox %}
+      <div class="cta-banner">
+        <img class="cta-icon" src="{% static 'assets/kit-callout.svg' %}" alt="" />
+        <div class="cta-content">
+          <div>
+            <div class="cta-title">Created with Firefox</div>
+            <div class="cta-description">A more private way to roam the web.</div>
+          </div>
+          <a class="cta-button" href="https://www.mozilla.org/firefox/">Try Firefox</a>
+        </div>
+      </div>
+      {% endif %}
     </div>
-    <iframe
-      class="annotation-frame"
-      sandbox="allow-same-origin"
-      srcdoc="{{ annotation.html_content }}"
-    ></iframe>
+
+    <!-- Right content area -->
+    <div class="content-area">
+      <div class="content-tab-bar">
+        <img src="{% static 'assets/logo.svg' %}" alt="" />
+        <a href="{{ annotation.source_url }}" target="_blank" rel="noopener">{{ annotation.source_url }}</a>
+      </div>
+      <iframe
+        class="content-frame"
+        sandbox="allow-same-origin"
+        srcdoc="{{ annotation.html_content }}"
+      ></iframe>
+    </div>
   </body>
 </html>
