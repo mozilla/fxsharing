@@ -194,8 +194,6 @@ class TestCreateShare(TestCase):
         assert share.links.count() == 2
 
     def test_duplicate_request_creates_distinct_share(self):
-        # Bug 2040049: sharing the same tab group again must produce a fresh,
-        # distinct share link rather than returning the previous one.
         payload = {
             "type": "tabs",
             "title": "My Links",

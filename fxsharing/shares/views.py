@@ -128,7 +128,7 @@ def create_share(request):
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
 
     # Always create a fresh share page so a user can generate a new link
-    # from the same tab group each time they share (bug 2040049).
+    # from the same tab group each time they share.
     with tracer.start_as_current_span("share.create") as span:
         span.set_attribute("share.outcome", "created")
         span.set_attribute("share.link_count", len(data.get("links", [])))
