@@ -3,7 +3,9 @@ from unittest.mock import MagicMock, patch
 from django.db import IntegrityError
 from django.test import TestCase
 
-from fxsharing.users.adapter import FxASocialAccountAdapter
+from allauth.socialaccount.models import SocialAccount
+
+from fxsharing.users.adapter import FxASocialAccountAdapter, user_display
 from fxsharing.users.models import User
 
 
@@ -20,6 +22,32 @@ class TestFxASocialAccountAdapter(TestCase):
         ):
             result = adapter.populate_user(None, sociallogin, {})
         assert result.fxa_id == "a1b2c3d4e5f6789abc"
+
+
+class TestUserDisplay(TestCase):
+    def test_returns_email_from_social_account(self):
+        user = User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
+        SocialAccount.objects.create(
+            user=user,
+            provider="fxa",
+            uid=user.fxa_id,
+            extra_data={"email": "jane@example.com"},
+        )
+        assert user_display(user) == "jane@example.com"
+
+    def test_falls_back_to_fxa_id_without_social_account(self):
+        user = User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
+        assert user_display(user) == "a1b2c3d4e5f6789abc"
+
+    def test_falls_back_to_fxa_id_when_email_missing(self):
+        user = User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
+        SocialAccount.objects.create(
+            user=user,
+            provider="fxa",
+            uid=user.fxa_id,
+            extra_data={},
+        )
+        assert user_display(user) == "a1b2c3d4e5f6789abc"
 
 
 class TestUserModel(TestCase):
