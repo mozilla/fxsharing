@@ -49,9 +49,6 @@ class Share(models.Model):
         choices=ShareStatus,
         default=ShareStatus.ACTIVE,
     )
-    idempotency_key = models.CharField(
-        max_length=64, null=True, blank=True, unique=True
-    )
     title = models.CharField(max_length=255)
     parent_share = models.ForeignKey(
         "self",
