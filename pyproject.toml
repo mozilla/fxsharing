@@ -27,6 +27,7 @@ dependencies = [
     "opentelemetry-instrumentation-redis>=0.59b0",
     "opentelemetry-instrumentation-requests>=0.59b0",
     "opentelemetry-instrumentation-gunicorn>=0.1.0b1",
+    "google-cloud-storage>=3.10.1",
     "sentry-sdk[django]>=2.0.0",
 ]
 
