@@ -35,6 +35,17 @@ class TestUserDisplay(TestCase):
         )
         assert user_display(user) == "jane@example.com"
 
+    def test_returns_email_for_dummy_provider(self):
+        # Local development logs in via the dummy provider, not fxa.
+        user = User.objects.create_user(fxa_id="42")
+        SocialAccount.objects.create(
+            user=user,
+            provider="dummy",
+            uid=user.fxa_id,
+            extra_data={"email": "dev@example.com"},
+        )
+        assert user_display(user) == "dev@example.com"
+
     def test_falls_back_to_fxa_id_without_social_account(self):
         user = User.objects.create_user(fxa_id="a1b2c3d4e5f6789abc")
         assert user_display(user) == "a1b2c3d4e5f6789abc"
