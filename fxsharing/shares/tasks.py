@@ -215,7 +215,7 @@ def fetch_link_preview(link_id):
     Link.objects.filter(id=link_id).update(
         preview_title=title or link.title,
         preview_description=description or None,
-        favicon_url=stored_favicon,
+        favicon_url=stored_favicon or "",
     )
 
     logger.info("stored preview for %s: title=%r", link.url, title)
