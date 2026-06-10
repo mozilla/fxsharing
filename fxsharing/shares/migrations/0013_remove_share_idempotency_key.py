@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('shares', '0011_deadlettertask'),
+        ('shares', '0012_alter_link_preview_description_and_more'),
     ]
 
     operations = [
