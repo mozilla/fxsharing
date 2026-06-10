@@ -198,3 +198,6 @@ Thumbs.db
 
 # gloud credentials for local bucket auth
 .gcloud_credentials
+
+# Claude
+.claude/worktrees/
