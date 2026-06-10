@@ -242,7 +242,7 @@ class MozShare extends MozLitElement {
       color: var(--text-color);
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      min-height: 100%;
       width: 100%;
     }
 
@@ -261,23 +261,27 @@ class MozShare extends MozLitElement {
       flex-direction: column;
       width: 100%;
       max-width: 964px;
+      min-width: 280px;
       margin-inline: auto;
-      padding-inline: var(--space-medium);
+      padding-inline: var(--size-item-large);
     }
 
     .link-list {
       display: flex;
       flex-direction: column;
-      gap: var(--space-large);
+      gap: var(--space-medium);
+      margin-block-end: 50px;
     }
 
     .share-footer {
       align-items: flex-start;
       border-top: var(--border-width) solid var(--border-color-card);
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
+      gap: 48px;
       margin-block-start: auto;
       padding-block: var(--size-item-large);
+      flex-direction: column;
     }
 
     .disclaimer {
@@ -300,10 +304,11 @@ class MozShare extends MozLitElement {
 
     .footer-links {
       display: flex;
+      flex-direction: column;
+      align-items: flex-start;
       gap: var(--space-large);
-      align-items: center;
-      flex: 0.9;
       justify-content: space-between;
+      padding-inline-start: var(--space-xlarge);
     }
 
     .footer-link {
@@ -339,24 +344,35 @@ class MozShare extends MozLitElement {
       margin-block-start: var(--space-large);
     }
 
-    @media (max-width: 1300px) {
-      .share-content {
-        max-width: 720px;
-      }
-    }
-
-    @media (max-width: 964px) {
-      .share-content {
-        padding-inline: var(--size-item-large);
-      }
-
-      .link-list {
-        gap: var(--space-medium);
+    @media (min-width: 516px) {
+      .share-footer {
+        flex-direction: row;
       }
 
       .footer-links {
-        flex-direction: column;
-        align-items: flex-end;
+         padding-inline-start: 0;
+      }
+    }
+
+    @media (min-width: 965px) {
+      .share-content {
+        padding-inline: var(--space-medium);
+      }
+
+      .link-list {
+        gap: var(--space-large);
+      }
+
+      .share-footer {
+        justify-content: space-between;
+        gap: 0;
+        padding-block: var(--size-item-large) 42px;
+      }
+
+      .footer-links {
+        flex-direction: row;
+        align-items: center;
+        flex: 0.9;
       }
     }
   `;
