@@ -58,14 +58,6 @@ class TestShareModel(TestCase):
         share = Share.objects.create(title="Test", user=self.user)
         assert share.status == ShareStatus.ACTIVE
 
-    def test_idempotency_key_nullable(self):
-        # Nested shares don't have an idempotency key
-        parent = Share.objects.create(title="Parent", user=self.user)
-        nested = Share.objects.create(
-            title="Nested", user=self.user, parent_share=parent
-        )
-        assert nested.idempotency_key is None
-
     def test_expires_at_set_via_api(self):
         payload = {
             "type": "tabs",
@@ -204,7 +196,7 @@ class TestCreateShare(TestCase):
         share = Share.objects.get()
         assert share.links.count() == 2
 
-    def test_duplicate_request_returns_same_url(self):
+    def test_duplicate_request_creates_distinct_share(self):
         payload = {
             "type": "tabs",
             "title": "My Links",
@@ -217,8 +209,10 @@ class TestCreateShare(TestCase):
         r2 = self.client.post(
             reverse("create_share"), data=body, content_type="application/json"
         )
-        assert r1.json()["url"] == r2.json()["url"]
-        assert Share.objects.filter(parent_share__isnull=True).count() == 1
+        assert r1.status_code == 201
+        assert r2.status_code == 201
+        assert r1.json()["url"] != r2.json()["url"]
+        assert Share.objects.filter(parent_share__isnull=True).count() == 2
 
     def test_accepts_bookmarks_type(self):
         payload = {

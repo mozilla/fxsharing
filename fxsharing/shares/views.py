@@ -1,4 +1,3 @@
-import hashlib
 import json
 from datetime import timedelta
 
@@ -78,7 +77,7 @@ SHARE_EXPIRY_DAYS = 7
 
 
 @transaction.atomic
-def create_share_from_data(data, user, parent_share=None, idempotency_key=None):
+def create_share_from_data(data, user, parent_share=None):
     share = Share.objects.create(
         user=user,
         title=data["title"],
@@ -88,7 +87,6 @@ def create_share_from_data(data, user, parent_share=None, idempotency_key=None):
             if parent_share is None
             else None
         ),
-        idempotency_key=idempotency_key,
     )
 
     links = []
@@ -129,24 +127,12 @@ def create_share(request):
     except ValidationError as e:
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
 
-    # Server-calculated idempotency key from request body hash.
-    # Phase 4: include user ID in hash once FxA auth is wired up.
-    idempotency_key = hashlib.sha256(request.body).hexdigest()
-
-    existing = Share.objects.filter(idempotency_key=idempotency_key).first()
-    if existing:
-        with tracer.start_as_current_span("share.create") as span:
-            span.set_attribute("share.outcome", "idempotent_duplicate")
-            span.set_attribute("share.shortcode", existing.shortcode)
-            url = request.build_absolute_uri(f"/{existing.shortcode}")
-            return JsonResponse({"url": url})
-
+    # Always create a fresh share page so a user can generate a new link
+    # from the same tab group each time they share.
     with tracer.start_as_current_span("share.create") as span:
         span.set_attribute("share.outcome", "created")
         span.set_attribute("share.link_count", len(data.get("links", [])))
-        share = create_share_from_data(
-            data=data, user=request.user, idempotency_key=idempotency_key
-        )
+        share = create_share_from_data(data=data, user=request.user)
         span.set_attribute("share.shortcode", share.shortcode)
         url = request.build_absolute_uri(f"/{share.shortcode}")
         return JsonResponse({"url": url}, status=201)
