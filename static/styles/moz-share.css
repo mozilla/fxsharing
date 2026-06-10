@@ -40,7 +40,7 @@ body:has(.share-wrapper) .site-logo {
   align-items: center;
   gap: var(--space-small);
   color: var(--text-color);
-  margin-block-end: 24px;
+  margin-block-end: var(--size-item-medium);
 }
 
 .link-count {

@@ -19,7 +19,7 @@ body {
   align-items: center;
   gap: var(--space-large);
   padding-inline: var(--size-item-large);
-  padding-block:32px;
+  padding-block: var(--size-item-large);
   margin-inline: auto;
   max-width: 964px;
   min-width: 280px;

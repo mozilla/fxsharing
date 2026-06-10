@@ -278,7 +278,7 @@ class MozShare extends MozLitElement {
       border-top: var(--border-width) solid var(--border-color-card);
       display: flex;
       justify-content: center;
-      gap: 48px;
+      gap: var(--size-item-xlarge);
       margin-block-start: auto;
       padding-block: var(--size-item-large);
       flex-direction: column;
