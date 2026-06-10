@@ -173,13 +173,17 @@ def fetch_link_preview(link_id):
     try:
         response = session.get(link.url, headers=headers, timeout=10)
         response.raise_for_status()
+
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 404:
             logger.warning("404 for %s (link_id=%s), skipping", link.url, link_id)
             return  # dead link; don't retry
         raise
     except requests.exceptions.TooManyRedirects:
-        logger.warning("Too many redirects for %s", link.url)
+        logger.warning(
+            "Too many redirects: %s redirects more than 5 times",
+            link.url,
+        )
         # Link is bad
         Link.objects.filter(id=link_id).update(safety_status=SafetyStatus.UNSAFE)
         return
