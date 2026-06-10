@@ -15,8 +15,6 @@ internally during the OAuth flow (``account_login`` as the default
 ``LOGIN_URL``, ``account_inactive`` for inactive users). Registering the names
 keeps ``reverse()`` working while ensuring the endpoints themselves are not
 reachable.
-
-See bug 2036462.
 """
 
 from django.http import Http404

@@ -24,13 +24,11 @@ class TestFxASocialAccountAdapter(TestCase):
 
 
 class TestAllauthUrlConfig(TestCase):
-    """Bug 2036462: only the FxA OAuth endpoints should be reachable; the rest
+    """Only the FxA OAuth endpoints should be reachable; the rest
     of django-allauth's endpoints must 404 (while keeping their names
     registered so allauth's internal reverse() calls keep working)."""
 
     def test_fxa_login_initiates_oauth(self):
-        # The one endpoint we care about: POST kicks off the FxA OAuth redirect
-        # (GET renders allauth's confirm page; the redirect happens on POST).
         response = self.client.post(reverse("fxa_login"))
         assert response.status_code == 302
         assert "/authorization?" in response["Location"]

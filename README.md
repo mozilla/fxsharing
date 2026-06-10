@@ -45,6 +45,46 @@ make worker   # start the Celery worker
 make flower   # start the Flower task monitor (http://localhost:5555)
 ```
 
+## Bucket storage
+
+Favicons are uploaded to a Google Cloud Storage bucket. `make setup` copies
+`.env.example` to `.env`, which already points local dev at a project made specifically for testing:
+
+```
+GCS_IMAGE_BUCKET=favicon-bucket-2
+GOOGLE_CLOUD_PROJECT=niklas-test-fx-sharing
+GOOGLE_APPLICATION_CREDENTIALS=/app/.gcloud_credentials
+```
+
+(In dev/prod these are injected via k8s and auth uses Workload Identity, so you don't set them there.)
+
+To get credentials for the test project locally:
+
+1. Install the Google Cloud SDK: https://docs.cloud.google.com/sdk/docs/install-sdk
+
+2. Ask a project admin to grant your Google account access to `niklas-test-fx-sharing`
+   (at least the `Storage Object Admin` role on `favicon-bucket-2`).
+
+3. Generate Application Default Credentials:
+
+   ```bash
+   gcloud auth application-default login
+   ```
+
+4. The app runs in Docker, where the project root is bind-mounted to `/app`. Copy the credentials
+   into the repo root as `.gcloud_credentials` so the container can read them at
+   `/app/.gcloud_credentials` (the path `.env` already expects):
+
+   ```bash
+   cp ~/.config/gcloud/application_default_credentials.json .gcloud_credentials
+   ```
+
+   `.gcloud_credentials` is gitignored, so it won't be committed. Re-run this `cp` whenever you
+   refresh your credentials with `gcloud auth application-default login`.
+
+If `GCS_IMAGE_BUCKET` is unset, favicon uploads are skipped — the app still works without bucket
+storage configured.
+
 ## API
 
 The `/__lbheartbeat__`, `/__heartbeat__`, and `/__version__` endpoints are provided by the [python-dockerflow](https://github.com/mozilla-services/python-dockerflow) library.
