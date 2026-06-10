@@ -421,7 +421,7 @@ class MozShare extends MozLitElement {
       this._copyBtn.textContent = "Link Copied";
       this._copyBtn.iconSrc = "/static/assets/check-filled.svg";
       setTimeout(() => {
-        this._copyBtn.textContent = "Copy link";
+        this._copyBtn.textContent = "Copy sharable link";
         this._copyBtn.iconSrc = "/static/assets/edit-copy.svg";
       }, 5000);
     }
