@@ -10,6 +10,8 @@ from celery.contrib.django.task import DjangoTask
 from celery.utils.log import get_task_logger
 from google.cloud import storage
 
+from fxsharing.shares.models import SafetyStatus
+
 logger = get_task_logger(__name__)
 
 FAVICON_MAX_BYTES = 1 * 1024 * 1024  # 1 MB cap
@@ -68,6 +70,7 @@ def download_and_store_favicon(favicon_url, link_id, headers):
         blob.upload_from_string(resp.content, content_type=content_type)
 
         return f"https://storage.googleapis.com/{bucket_name}/{object_name}"
+
     except Exception:
         logger.warning(
             "failed to download/upload favicon for link_id=%s from %s",
@@ -163,16 +166,25 @@ def fetch_link_preview(link_id):
         )
     }
 
-    r = requests.get(link.url, headers=headers, timeout=10)
+    # Only follow 5 redirects
+    session = requests.Session()
+    session.max_redirects = 5
+
     try:
-        r.raise_for_status()
+        response = session.get(link.url, headers=headers, timeout=10)
+        response.raise_for_status()
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 404:
             logger.warning("404 for %s (link_id=%s), skipping", link.url, link_id)
             return  # dead link; don't retry
         raise
+    except requests.exceptions.TooManyRedirects:
+        logger.warning("Too many redirects for %s", link.url)
+        # Link is bad
+        Link.objects.filter(id=link_id).update(safety_status=SafetyStatus.UNSAFE)
+        return
 
-    soup = BeautifulSoup(r.text, "html.parser")
+    soup = BeautifulSoup(response.text, "html.parser")
 
     title = None
     if soup.title:
