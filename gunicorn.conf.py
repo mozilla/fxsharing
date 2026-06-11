@@ -15,7 +15,7 @@ loglevel = "info"
 
 
 def post_fork(server, worker):
-    # BatchSpanProcessor's export thread isn't fork-safem re-add one per worker so
+    # BatchSpanProcessor's export thread isn't fork-safe, re-add one per worker so
     # request spans actually flush. https://opentelemetry-python.readthedocs.io/en/stable/examples/fork-process-model/README.html
     trace.get_tracer_provider().add_span_processor(
         BatchSpanProcessor(OTLPSpanExporter())
