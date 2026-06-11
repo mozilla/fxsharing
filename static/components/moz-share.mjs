@@ -26,15 +26,34 @@ class MozLink extends MozLitElement {
   static styles = css`
     moz-card {
       --card-padding: 0;
+      --card-background-color: light-dark(rgba(255, 255, 255, 0.4), rgba(21, 20, 26, 0.4));
+      --card-background-color-hover: light-dark(rgba(21, 20, 26, 0.07), rgba(251, 251, 254, 0.07));
+      --card-border-radius: var(--border-radius-medium);
     }
 
     .link-anchor {
       align-items: center;
+      border-radius: var(--border-radius-medium);
       color: var(--text-color);
       display: flex;
       gap: var(--space-large);
       padding: var(--space-large);
       text-decoration: none;
+    }
+
+    .link-anchor:hover {
+      background-color: var(--card-background-color-hover);
+    }
+
+    .link-anchor:hover .link-title {
+      color: var(--link-color);
+    }
+
+    .link-anchor:focus-visible {
+      background-color: var(--card-background-color-hover);
+      outline: var(--focus-outline);
+      outline-offset: var(--focus-outline-offset);
+      border-radius: var(--border-radius-medium);
     }
 
     .favicon-container picture {
@@ -70,6 +89,12 @@ class MozLink extends MozLitElement {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .external-icon {
+      width: var(--size-item-xsmall);
+      height: var(--size-item-xsmall);
+      flex-shrink: 0;
     }
 
     @media (max-width: 964px) {
