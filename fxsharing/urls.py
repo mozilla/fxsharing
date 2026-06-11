@@ -30,7 +30,8 @@ urlpatterns = [
         shares_views.view_share,
         name="view_share",
     ),
-    path("accounts/", include("allauth.urls")),
+    # Curated subset of django-allauth routes — see fxsharing/users/urls.py.
+    path("accounts/", include("fxsharing.users.urls")),
     path("admin/", admin.site.urls),
     re_path(r"^.*$", shares_views.page_not_found, {"exception": None}),
 ]

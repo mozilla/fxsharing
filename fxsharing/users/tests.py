@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from django.db import IntegrityError
 from django.test import TestCase
+from django.urls import NoReverseMatch, reverse
 
 from allauth.socialaccount.models import SocialAccount
 
@@ -35,8 +36,9 @@ class TestUserDisplay(TestCase):
         )
         assert user_display(user) == "jane@example.com"
 
-    def test_returns_email_for_dummy_provider(self):
-        # Local development logs in via the dummy provider, not fxa.
+    def test_returns_email_for_non_fxa_provider(self):
+        # user_display is provider-agnostic: it reads the email from whichever
+        # social account the user has, not specifically the fxa one.
         user = User.objects.create_user(fxa_id="42")
         SocialAccount.objects.create(
             user=user,
@@ -59,6 +61,60 @@ class TestUserDisplay(TestCase):
             extra_data={},
         )
         assert user_display(user) == "a1b2c3d4e5f6789abc"
+
+
+class TestAllauthUrlConfig(TestCase):
+    """Only the FxA OAuth endpoints should be reachable; the rest
+    of django-allauth's endpoints must 404 (while keeping their names
+    registered so allauth's internal reverse() calls keep working)."""
+
+    def test_fxa_login_initiates_oauth(self):
+        response = self.client.post(reverse("fxa_login"))
+        assert response.status_code == 302
+        assert "/authorization?" in response["Location"]
+
+    def test_disabled_endpoints_return_404(self):
+        for name in [
+            "account_login",
+            "account_logout",
+            "account_inactive",
+            "socialaccount_connections",
+        ]:
+            with self.subTest(name=name):
+                response = self.client.get(reverse(name))
+                assert response.status_code == 404
+
+    def test_legacy_social_redirects_are_gone(self):
+        for path in [
+            "/accounts/social/login/cancelled/",
+            "/accounts/social/login/error/",
+            "/accounts/social/signup/",
+            "/accounts/social/connections/",
+        ]:
+            with self.subTest(path=path):
+                assert self.client.get(path).status_code == 404
+
+    def test_dummy_provider_not_mounted(self):
+        # The dummy provider is registered in DEBUG but we don't route it;
+        # dev-login replaced it for local auth.
+        assert self.client.get("/accounts/dummy/login/").status_code == 404
+
+    def test_internal_reverse_names_still_resolve(self):
+        # allauth reverses these during the OAuth flow; they must not raise.
+        for name in [
+            "fxa_login",
+            "fxa_callback",
+            "account_login",
+            "account_inactive",
+            "socialaccount_login_cancelled",
+            "socialaccount_login_error",
+            "socialaccount_signup",
+        ]:
+            with self.subTest(name=name):
+                try:
+                    reverse(name)
+                except NoReverseMatch:
+                    self.fail(f"{name} should still be reversible")
 
 
 class TestUserModel(TestCase):
