@@ -5,6 +5,9 @@ body {
   flex-direction: column;
   background-image: url("/static/assets/background-light.png");
   background-size: cover;
+  background-repeat: no-repeat;
+  background-position: left top;
+  background-attachment: fixed;
 }
 
 @media (prefers-color-scheme: dark) {
