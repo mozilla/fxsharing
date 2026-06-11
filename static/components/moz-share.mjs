@@ -55,7 +55,8 @@ class MozLink extends MozLitElement {
     }
 
     .link-title {
-      font-size: var(--font-size-small);
+      font-size: var(--font-size-root);
+      font-weight: var(--font-weight-semibold);
       margin-block: 0 var(--space-xsmall);
       overflow: hidden;
       text-overflow: ellipsis;
@@ -63,6 +64,7 @@ class MozLink extends MozLitElement {
     }
 
     .link-url {
+      color: var(--text-color-deemphasized);
       font-size: var(--font-size-xsmall);
       margin: 0;
       overflow: hidden;
@@ -308,7 +310,8 @@ class MozShare extends MozLitElement {
 
     .footer-link {
       color: var(--text-color-deemphasized);
-      font: inherit;
+      font-size: var(--font-size-small);
+      font-weight: var(--font-weight);
       text-decoration: underline;
       text-align: center;
       background: none;
