@@ -233,3 +233,8 @@ if SENTRY_DSN:
         send_default_pii=False,
         traces_sample_rate=0,
     )
+
+CINDER_URL = env("CINDER_URL", default="")
+CINDER_API_ENDPOINT = CINDER_URL.rstrip("/") + "/api/v2/workflows/event/"
+CINDER_API_TOKEN = env("CINDER_API_TOKEN", default="")
+CINDER_WEBHOOK_TOKEN = env("CINDER_WEBHOOK_TOKEN", default="")
