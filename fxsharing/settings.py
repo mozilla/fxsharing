@@ -89,6 +89,7 @@ SILENCED_SYSTEM_CHECKS = [
 ]  # SOCIALACCOUNT_ONLY=True; normal signup/login never used
 ACCOUNT_SIGNUP_FIELDS = ["email"]
 SOCIALACCOUNT_ADAPTER = "fxsharing.users.adapter.FxASocialAccountAdapter"
+ACCOUNT_USER_DISPLAY = "fxsharing.users.adapter.user_display"
 SOCIALACCOUNT_STORE_TOKENS = False
 SOCIALACCOUNT_PROVIDERS = {
     "fxa": {
