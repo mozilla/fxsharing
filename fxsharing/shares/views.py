@@ -202,7 +202,6 @@ def create_share(request):
             log.exception("Cinder quality report failed for share %s", share.id)
 
         url = request.build_absolute_uri(f"/{share.shortcode}")
-        url = request.build_absolute_uri(f"/{share.shortcode}")
         return JsonResponse({"url": url}, status=201)
 
 
