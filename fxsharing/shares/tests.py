@@ -244,6 +244,97 @@ class TestCreateShare(TestCase):
         assert response.status_code == 400
 
 
+@override_settings(MAX_ACTIVE_SHARES=3)
+class TestCreateShareActiveLimit(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6limit")
+        cls.other = User.objects.create_user(fxa_id="a1b2c3d4e5f6other")
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def _make_live_share(self, title, user=None, **kwargs):
+        """A top-level share that counts: ACTIVE status, not yet expired."""
+        kwargs.setdefault("expires_at", timezone.now() + timedelta(days=7))
+        return Share.objects.create(title=title, user=user or self.user, **kwargs)
+
+    def _post(self):
+        payload = {
+            "type": "tabs",
+            "title": "My Links",
+            "links": [{"url": "https://example.com", "title": "Example"}],
+        }
+        return self.client.post(
+            reverse("create_share"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_under_limit_succeeds(self):
+        self._make_live_share("A")
+        self._make_live_share("B")
+        response = self._post()
+        assert response.status_code == 201
+
+    def test_at_limit_returns_429(self):
+        for i in range(3):
+            self._make_live_share(f"S{i}")
+        response = self._post()
+        assert response.status_code == 429
+        assert "error" in response.json()
+        # The rejected request created no share.
+        assert Share.objects.filter(user=self.user).count() == 3
+
+    def test_soft_deleted_shares_do_not_count(self):
+        # Three shares created then soft-deleted no longer count against the cap.
+        for i in range(3):
+            self._make_live_share(f"S{i}").delete()
+        response = self._post()
+        assert response.status_code == 201
+
+    def test_nested_shares_do_not_count(self):
+        # Two top-level shares (one with two nested sub-shares) = 4 rows but only
+        # 2 count, so the user is still under the cap of 3.
+        self._make_live_share("Top1")
+        parent = self._make_live_share("Top2")
+        Share.objects.create(title="Nested1", user=self.user, parent_share=parent)
+        Share.objects.create(title="Nested2", user=self.user, parent_share=parent)
+        response = self._post()
+        assert response.status_code == 201
+
+    def test_expired_shares_do_not_count(self):
+        # Shares past their expires_at no longer count, even if still ACTIVE
+        # (expiry is lazy — nothing flips status to EXPIRED).
+        for i in range(3):
+            self._make_live_share(
+                f"Old{i}", expires_at=timezone.now() - timedelta(days=1)
+            )
+        response = self._post()
+        assert response.status_code == 201
+
+    def test_non_active_status_shares_do_not_count(self):
+        # Pending, under-review, and flagged shares are excluded from the count
+        # even though they are non-deleted and not yet expired.
+        for i, status in enumerate(
+            [
+                ShareStatus.PENDING,
+                ShareStatus.UNDER_REVIEW,
+                ShareStatus.FLAGGED_BY_SYSTEM,
+            ]
+        ):
+            self._make_live_share(f"NonActive{i}", status=status)
+        response = self._post()
+        assert response.status_code == 201
+
+    def test_limit_is_per_user(self):
+        for i in range(3):
+            self._make_live_share(f"Other{i}", user=self.other)
+        # self.user is at zero; the other user's shares don't count.
+        response = self._post()
+        assert response.status_code == 201
+
+
 class TestCreateShareRequiresAuth(TestCase):
     def test_anonymous_post_is_rejected(self):
         payload = {
