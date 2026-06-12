@@ -32,6 +32,10 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/auth-complete")
 
+# Max active (non-deleted) top-level shares a user may hold within the trailing
+# SHARE_EXPIRY_DAYS window before create_share rejects with 429.
+MAX_ACTIVE_SHARES = env.int("MAX_ACTIVE_SHARES", default=15)
+
 
 # Application definition
 

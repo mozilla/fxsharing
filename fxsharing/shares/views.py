@@ -95,6 +95,21 @@ def view_share(request, shortcode):
 SHARE_EXPIRY_DAYS = 7
 
 
+def active_share_count(user):
+    """Count a user's active (non-deleted, non-expired) top-level shares.
+
+    Uses the default manager (which excludes soft-deleted shares) and restricts
+    to top-level shares created within the trailing SHARE_EXPIRY_DAYS window —
+    equivalently, those that have not yet expired.
+    """
+    window_start = timezone.now() - timedelta(days=SHARE_EXPIRY_DAYS)
+    return Share.objects.filter(
+        user=user,
+        parent_share__isnull=True,
+        created_at__gte=window_start,
+    ).count()
+
+
 @transaction.atomic
 def create_share_from_data(data, user, parent_share=None):
     share = Share.objects.create(
@@ -187,6 +202,15 @@ def create_share(request):
 
     except ValidationError as e:
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
+
+    # Cap how many active (non-deleted, non-expired) shares a user may hold.
+    if active_share_count(request.user) >= settings.MAX_ACTIVE_SHARES:
+        with tracer.start_as_current_span("share.create") as span:
+            span.set_attribute("share.outcome", "limit_reached")
+        return JsonResponse(
+            {"error": "You have reached the maximum number of active shares."},
+            status=429,
+        )
 
     # Always create a fresh share page so a user can generate a new link
     # from the same tab group each time they share.
