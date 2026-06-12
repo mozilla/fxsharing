@@ -148,6 +148,8 @@ CELERY_TASK_TRACK_STARTED = True
 
 GCS_IMAGE_BUCKET = env("GCS_IMAGE_BUCKET", default="")
 
+MAX_REDIRECTS = env.int("MAX_REDIRECTS", default=5)
+
 LOG_LEVEL = env("LOG_LEVEL", default="INFO")
 LOG_FORMAT = env("LOG_FORMAT", default="mozlog")
 
