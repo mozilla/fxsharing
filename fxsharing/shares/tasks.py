@@ -166,9 +166,8 @@ def fetch_link_preview(link_id):
         )
     }
 
-    # Only follow 5 redirects
     session = requests.Session()
-    session.max_redirects = 5
+    session.max_redirects = settings.MAX_REDIRECTS
 
     try:
         response = session.get(link.url, headers=headers, timeout=10)
@@ -181,10 +180,10 @@ def fetch_link_preview(link_id):
         raise
     except requests.exceptions.TooManyRedirects:
         logger.warning(
-            "Too many redirects: %s redirects more than 5 times",
+            "Too many redirects: %s redirects more than %d times",
             link.url,
+            settings.MAX_REDIRECTS,
         )
-        # Link is bad
         Link.objects.filter(id=link_id).update(safety_status=SafetyStatus.UNSAFE)
         return
 
