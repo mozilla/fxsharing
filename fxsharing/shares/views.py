@@ -229,7 +229,7 @@ def report_share(request, shortcode):
         )
         span.set_attribute("share.transitioned", updated > 0)
 
-    messages.success(request, "Your report has been submitted.")
+    messages.success(request, "Your report has been submitted")
     return redirect(reverse("view_share", args=[shortcode]))
 
 

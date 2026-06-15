@@ -372,7 +372,7 @@ class TestReportShare(TestCase):
         assert response.status_code == 302
         assert response["Location"] == reverse("view_share", args=[share.shortcode])
         assert [str(m) for m in get_messages(response.wsgi_request)] == [
-            "Your report has been submitted."
+            "Your report has been submitted"
         ]
         share.refresh_from_db()
         assert share.status == "under_review"
