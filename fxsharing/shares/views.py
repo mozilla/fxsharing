@@ -203,8 +203,6 @@ def create_share(request):
 
     # Cap how many active (non-deleted, non-expired) shares a user may hold.
     if active_share_count(request.user) >= settings.MAX_ACTIVE_SHARES:
-        with tracer.start_as_current_span("share.create") as span:
-            span.set_attribute("share.outcome", "limit_reached")
         return JsonResponse(
             {"error": "You have reached the maximum number of active shares."},
             status=429,
