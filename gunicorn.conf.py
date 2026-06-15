@@ -1,7 +1,4 @@
 import environ
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 env = environ.Env()
 
@@ -16,11 +13,3 @@ max_requests_jitter = env.int("GUNICORN_MAX_REQUESTS_JITTER", default=200)
 accesslog = "-"
 errorlog = "-"
 loglevel = "info"
-
-
-def post_fork(server, worker):
-    # BatchSpanProcessor's export thread isn't fork-safe, re-add one per worker so
-    # request spans actually flush. https://opentelemetry-python.readthedocs.io/en/stable/examples/fork-process-model/README.html
-    trace.get_tracer_provider().add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter())
-    )

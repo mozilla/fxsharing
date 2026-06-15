@@ -74,5 +74,4 @@ EXPOSE 8000
 
 STOPSIGNAL SIGINT
 
-ENTRYPOINT ["opentelemetry-instrument"]
 CMD ["gunicorn", "--config", "gunicorn.conf.py", "fxsharing.wsgi:application"]
