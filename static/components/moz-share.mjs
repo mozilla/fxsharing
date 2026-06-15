@@ -1,6 +1,7 @@
 import { MozLitElement } from "../dependencies/lit-utils.mjs";
 import { css, html } from "../dependencies/lit.all.mjs";
 import "./moz-button/moz-button.mjs";
+import "./moz-button-group/moz-button-group.mjs";
 import "./moz-card/moz-card.mjs";
 import "./moz-message-bar/moz-message-bar.mjs";
 import "./moz-radio-group/moz-radio-group.mjs";
@@ -355,21 +356,40 @@ class MozShare extends MozLitElement {
     }
 
     #report-dialog {
-      border: none;
+      border: 1px solid var(--border-color);
       border-radius: var(--border-radius-medium);
-      padding: var(--space-xxlarge);
+      padding: var(--space-large);
       max-width: 400px;
+      background-color: var(--background-color-canvas);
+      color: var(--text-color);
+      box-shadow: var(--box-shadow-level-3);
+    }
+
+    #report-dialog form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-large);
     }
 
     #report-dialog::backdrop {
       background-color: var(--background-color-overlay);
     }
 
-    .report-actions {
+    .report-header {
       display: flex;
-      justify-content: flex-end;
+      align-items: center;
       gap: var(--space-small);
-      margin-block-start: var(--space-large);
+    }
+
+    .report-header-icon {
+      display: flex;
+      flex-shrink: 0;
+    }
+
+    .report-title {
+      margin: 0;
+      font-size: var(--font-size-root);
+      font-weight: var(--font-weight-semibold);
     }
 
     @media (min-width: 516px) {
@@ -407,6 +427,7 @@ class MozShare extends MozLitElement {
 
   static queries = {
     reportDialog: "#report-dialog",
+    reportForm: "#report-dialog form",
   };
 
   connectedCallback() {
@@ -480,6 +501,12 @@ class MozShare extends MozLitElement {
     this.reportDialog.close();
   }
 
+  // moz-button renders its <button> in a nested shadow root, so it can't act
+  // as a native form submitter. Submit the form imperatively instead.
+  submitReport() {
+    this.reportForm.requestSubmit();
+  }
+
   renderFooterLinks(loading = false) {
     return html`
       <div class="footer-links">
@@ -488,7 +515,7 @@ class MozShare extends MozLitElement {
           ?disabled=${loading}
           @click=${this.openReportDialog}
         >
-          Report unsafe page
+          Report page
         </button>
         <a
           class="footer-link"
@@ -566,10 +593,20 @@ class MozShare extends MozLitElement {
 
         <dialog id="report-dialog">
           <form method="post" action="/report/${this.share.shortcode}">
+            <div class="report-header">
+              <picture class="report-header-icon">
+                <source
+                  srcset="/static/assets/info-dark.svg"
+                  media="(prefers-color-scheme: dark)"
+                />
+                <img src="/static/assets/info-light.svg" alt="" />
+              </picture>
+              <h2 class="report-title">Why are you reporting this page?</h2>
+            </div>
             <moz-radio-group
-              label="Why are you reporting this page?"
               name="reason"
               value="copyright"
+              aria-label="Why are you reporting this page?"
             >
               <moz-radio
                 value="copyright"
@@ -585,10 +622,12 @@ class MozShare extends MozLitElement {
               ></moz-radio>
               <moz-radio value="other" label="Other"></moz-radio>
             </moz-radio-group>
-            <div class="report-actions">
-              <button type="button" @click=${this.cancelReport}>Cancel</button>
-              <button type="submit">Submit</button>
-            </div>
+            <moz-button-group>
+              <moz-button @click=${this.cancelReport}>Cancel</moz-button>
+              <moz-button type="primary" @click=${this.submitReport}
+                >Submit</moz-button
+              >
+            </moz-button-group>
           </form>
         </dialog>
       </div>
