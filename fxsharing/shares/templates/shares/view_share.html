@@ -40,4 +40,14 @@
     <moz-share>{{ share_data|json_script }}</moz-share>
     {% for message in messages %}<moz-message-bar type="success" message="{{ message }}" dismissable></moz-message-bar>{% endfor %}
   </main>
+  {% if not is_firefox %}
+    <aside class="fx-banner">
+      <img class="fx-banner-mascot" src="{% static 'assets/firefox-mascot.svg' %}" alt="" />
+      <div class="fx-banner-copy">
+        <p class="fx-banner-title">Created with Firefox</p>
+        <p class="fx-banner-subtitle">A more private way to roam the web.</p>
+      </div>
+      <a class="cta-button" data-event="cta_click" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
+    </aside>
+  {% endif %}
 {% endblock %}
