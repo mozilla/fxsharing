@@ -13,7 +13,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
-from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -41,20 +40,6 @@ class CinderWebhookIgnoredError(CinderWebhookError):
     """Not an error, a decision we ignore because we already took action, or it's for an entity we don't need to track."""
 
     reportable = False
-
-
-def shares(request):
-    shares = Share.objects.filter(parent_share__isnull=True)
-    template = ""
-    for share in shares:
-        url = request.build_absolute_uri(f"/{share.shortcode}")
-        template += (
-            f'<div><a href="{url}">{escape(share.title)} {share.created_at}</a></div>'
-        )
-
-    return HttpResponse(
-        f'<div style="background-color:white;"><h1>Shares</h1>{template}</div>'
-    )
 
 
 def view_share(request, shortcode):
