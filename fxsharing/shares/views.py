@@ -95,6 +95,28 @@ def view_share(request, shortcode):
 SHARE_EXPIRY_DAYS = 7
 
 
+def active_share_count(user):
+    """Count a user's active top-level shares for the share-creation limit.
+
+    Only ``ACTIVE`` shares count: pending, under-review, flagged, blocked, and
+    expired shares do not count against the user's limit. We pair the status
+    check with ``expires_at__gt`` because expiry is lazy — a share past its
+    ``expires_at`` keeps ``status == ACTIVE`` until something transitions it, so
+    the timestamp is what actually decides whether it is still live (mirroring
+    ``Share.is_expired``).
+
+    The default manager already excludes soft-deleted shares. ``expires_at`` and
+    ``timezone.now()`` are both timezone-aware UTC instants, so the comparison
+    is correct regardless of the server's or the user's local timezone.
+    """
+    return Share.objects.filter(
+        user=user,
+        parent_share__isnull=True,
+        status=ShareStatus.ACTIVE,
+        expires_at__gt=timezone.now(),
+    ).count()
+
+
 @transaction.atomic
 def create_share_from_data(data, user, parent_share=None):
     share = Share.objects.create(
@@ -187,6 +209,15 @@ def create_share(request):
 
     except ValidationError as e:
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
+
+    # Cap how many active (non-deleted, non-expired) shares a user may hold.
+    if active_share_count(request.user) >= settings.MAX_ACTIVE_SHARES:
+        with tracer.start_as_current_span("share.create") as span:
+            span.set_attribute("share.outcome", "limit_reached")
+        return JsonResponse(
+            {"error": "You have reached the maximum number of active shares."},
+            status=429,
+        )
 
     # Always create a fresh share page so a user can generate a new link
     # from the same tab group each time they share.
