@@ -375,6 +375,7 @@ class TestViewShare(TestCase):
         assert response.context["is_firefox"] is True
         assert b"Created with Firefox" not in response.content
 
+
 class TestReportShare(TestCase):
     @classmethod
     def setUpTestData(cls):
