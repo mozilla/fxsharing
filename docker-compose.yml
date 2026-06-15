@@ -29,7 +29,7 @@ services:
     entrypoint: ""
     command: >
       /bin/sh -c "python manage.py migrate &&
-                  opentelemetry-instrument python manage.py runserver --noreload 0.0.0.0:8000"
+                  python manage.py runserver --noreload 0.0.0.0:8000"
     volumes:
       - .:/app
     ports:
@@ -40,9 +40,6 @@ services:
       DATABASE_URL: postgres://postgres@db/fxsharing
       REDIS_URL: redis://redis:6379/0
       DJANGO_SETTINGS_MODULE: fxsharing.settings
-      # Default to no-op exporters; set OTEL_TRACES_EXPORTER=otlp in .env to enable Jaeger.
-      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
-      OTEL_METRICS_EXPORTER: ${OTEL_METRICS_EXPORTER:-none}
     depends_on:
       db:
         condition: service_healthy
@@ -52,7 +49,7 @@ services:
   worker:
     build: .
     entrypoint: ""
-    command: opentelemetry-instrument celery -A fxsharing worker -l info
+    command: celery -A fxsharing worker -l info
     volumes:
       - .:/app
     env_file:
@@ -61,8 +58,6 @@ services:
       DATABASE_URL: postgres://postgres@db/fxsharing
       REDIS_URL: redis://redis:6379/0
       DJANGO_SETTINGS_MODULE: fxsharing.settings
-      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
-      OTEL_METRICS_EXPORTER: ${OTEL_METRICS_EXPORTER:-none}
     restart: on-failure
     depends_on:
       db:
