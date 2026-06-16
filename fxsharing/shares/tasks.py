@@ -10,6 +10,7 @@ from celery.contrib.django.task import DjangoTask
 from celery.utils.log import get_task_logger
 from google.cloud import storage
 
+from fxsharing.shares import metrics
 from fxsharing.shares.models import SafetyStatus
 from fxsharing.shares.url_safety import UnsafeURLError, safe_get
 
@@ -120,6 +121,7 @@ class BaseTaskWithRetry(DjangoTask):
                 "exception_class": type(exc).__name__,
             },
         )
+        metrics.task_retried.add(1, {"task": self.name})
         super().on_retry(exc, task_id, args, kwargs, einfo)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -147,6 +149,9 @@ class BaseTaskWithRetry(DjangoTask):
             exception_message=str(exc),
             traceback=traceback,
             queue=queue,
+        )
+        metrics.task_deadlettered.add(
+            1, {"task": self.name, "exception_class": type(exc).__name__}
         )
         super().on_failure(exc, task_id, args, kwargs, einfo)
 
