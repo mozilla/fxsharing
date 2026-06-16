@@ -448,6 +448,24 @@ class TestViewShare(TestCase):
         response = self.client.get(reverse("view_share", args=[share.shortcode]))
         assert response.status_code == 200
 
+    def test_non_firefox_ua_shows_download_banner(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        response = self.client.get(
+            reverse("view_share", args=[share.shortcode]),
+            HTTP_USER_AGENT="Chrome/109.0",
+        )
+        assert response.context["is_firefox"] is False
+        assert b"Created with Firefox" in response.content
+
+    def test_firefox_ua_hides_download_banner(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        response = self.client.get(
+            reverse("view_share", args=[share.shortcode]),
+            HTTP_USER_AGENT="Mozilla/5.0 Gecko/20100101 Firefox/109.0",
+        )
+        assert response.context["is_firefox"] is True
+        assert b"Created with Firefox" not in response.content
+
 
 class TestReportShare(TestCase):
     @classmethod

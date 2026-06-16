@@ -85,3 +85,85 @@ moz-message-bar {
   z-index: 2;
   --message-bar-icon-close-url: url("/static/assets/close.svg");
 }
+
+.fx-banner {
+  position: fixed;
+  inset-inline: var(--space-medium);
+  bottom: var(--space-large);
+  margin-inline: auto;
+  min-width: 320px;
+  max-width: 600px;
+  z-index: 3;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-medium);
+  padding-inline: var(--space-medium);
+  height: 72px;
+  border-radius: var(--border-radius-large);
+  background: linear-gradient(142deg, #fcf5f0 2%, #ffeafe 85%);
+  box-shadow: var(--box-shadow-level-4);
+  backdrop-filter: blur(30px);
+  color: var(--text-color);
+}
+
+.fx-banner-mascot {
+  flex-shrink: 0;
+  display: none;
+  width: 110px;
+  height: 72px;
+  border-start-start-radius: var(--border-radius-large);
+  border-end-start-radius: var(--border-radius-large);
+}
+
+.fx-banner-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxsmall);
+}
+
+.fx-banner-title {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-root);
+}
+
+.fx-banner-subtitle {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--text-color-deemphasized);
+}
+
+@media (min-width: 500px) {
+  .fx-banner {
+    /* width: max-content; */
+    padding-inline: 0 var(--space-xxlarge);
+    gap: var(--space-xxlarge);
+  }
+ .fx-banner-mascot {
+  display: block;
+ }
+}
+
+@media (prefers-color-scheme: dark) {
+  .fx-banner {
+    background: linear-gradient(97deg, #8b37c1 -5%, #210340 85%);
+  }
+}
+
+.fx-banner .cta-button {
+  flex-shrink: 0;
+  align-self: center;
+  margin-block-start: 0;
+  --button-background-color-primary: light-dark(#854dff, #bba0ff);
+  --button-background-color-primary-hover: color-mix(in srgb, light-dark(#854dff, #bba0ff) 90%, #000);
+  --button-background-color-primary-active: color-mix(in srgb, light-dark(#854dff, #bba0ff) 80%, #000);
+  --button-border-color-primary: transparent;
+  --button-border-color-primary-hover: transparent;
+  --button-border-color-primary-active: transparent;
+  --button-text-color-primary: light-dark(#fff, #101118);
+  --button-text-color-primary-hover: light-dark(#fff, #101118);
+  --button-text-color-primary-active: light-dark(#fff, #101118);
+}
