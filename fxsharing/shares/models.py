@@ -25,6 +25,12 @@ class ShareStatus(models.TextChoices):
     EXPIRED = "expired", "Expired"
 
 
+class ShareType(models.TextChoices):
+    TABS = "tabs", "Multi selected tabs"
+    BOOKMARKS = "bookmarks", "Bookmark folder"
+    TAB_GROUP = "tab_group", "Tab group"
+
+
 class SafetyStatus(models.TextChoices):
     UNKNOWN = "unknown", "Unknown"
     SAFE = "safe", "Safe"
@@ -50,6 +56,7 @@ class Share(models.Model):
         default=ShareStatus.ACTIVE,
     )
     title = models.CharField(max_length=255)
+    type = models.CharField(max_length=16, choices=ShareType)
     parent_share = models.ForeignKey(
         "self",
         on_delete=models.CASCADE,
@@ -103,6 +110,7 @@ class Share(models.Model):
             shortcode=self.shortcode,
             status=self.status,
             title=self.title,
+            type=self.type,
             expires_at=str(self.expires_at) if self.expires_at else None,
             created_at=str(self.created_at),
             user=str(self.user),

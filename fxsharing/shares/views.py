@@ -84,8 +84,7 @@ def view_share(request, shortcode):
         request,
         "shares/view_share.html",
         {
-            "share_data": share_data,
-            "share_title": share.title,
+            "share": share_data,
             "link_count": link_count,
             "expiry_text": share.expiry_text,
         },
@@ -122,6 +121,7 @@ def create_share_from_data(data, user, parent_share=None):
     share = Share.objects.create(
         user=user,
         title=data["title"],
+        type=data["type"],
         parent_share=parent_share,
         expires_at=(
             timezone.now() + timedelta(days=SHARE_EXPIRY_DAYS)

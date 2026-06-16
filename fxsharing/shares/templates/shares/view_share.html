@@ -1,7 +1,7 @@
 {% extends "shares/base.html" %}
 {% load static %}
 
-{% block title %}{{ share_data.title }}{% endblock %}
+{% block title %}{{ share.title }}{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'styles/moz-share.css' %}" />
@@ -14,17 +14,19 @@
 {% block header %}
   <div class="share-header-left">
     <div class="share-title-block">
-      <h1 class="share-title">{{ share_title }}</h1>
+      <h1 class="share-title">{{ share.title }}</h1>
       <div class="share-meta">
-        <span class="link-count">
-          <picture>
-            <source srcset="/static/assets/folder-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="/static/assets/folder-light.svg" alt="" />
-          </picture>
-          {{ link_count }}
-        </span>
-        {% if expiry_text %}
+        {% if share.type != 'tabs' %}
+          <span class="link-count">
+            <picture>
+              <source srcset="/static/assets/folder-dark.svg" media="(prefers-color-scheme: dark)" />
+              <img src="/static/assets/folder-light.svg" alt="" />
+            </picture>
+            {{ link_count }}
+          </span>
           <span aria-hidden="true">·</span>
+        {% endif %}
+        {% if expiry_text %}
           <span>{{ expiry_text }}</span>
         {% endif %}
       </div>
@@ -37,7 +39,7 @@
 
 {% block main %}
   <main class="share-wrapper">
-    <moz-share>{{ share_data|json_script }}</moz-share>
+    <moz-share>{{ share|json_script }}</moz-share>
     {% for message in messages %}<moz-message-bar type="success" message="{{ message }}" dismissable></moz-message-bar>{% endfor %}
   </main>
 {% endblock %}
