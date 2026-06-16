@@ -85,8 +85,6 @@ moz-message-bar {
   --message-bar-icon-close-url: url("/static/assets/close.svg");
 }
 
-/* Download Firefox banner, shown only to non-Firefox visitors. Floats over
-   the collection, pinned to the bottom-center of the viewport. */
 .fx-banner {
   position: fixed;
   inset-inline: var(--space-medium);
@@ -113,6 +111,8 @@ moz-message-bar {
   display: none;
   width: 110px;
   height: 72px;
+  border-start-start-radius: var(--border-radius-large);
+  border-end-start-radius: var(--border-radius-large);
 }
 
 .fx-banner-copy {
@@ -152,9 +152,6 @@ moz-message-bar {
   }
 }
 
-/* Inverse Nova button treatment, per theme: a saturated purple on light
-   backgrounds, a lighter lavender on dark. Overrides the custom properties the
-   base .cta-button rule already reads. */
 .fx-banner .cta-button {
   flex-shrink: 0;
   align-self: center;
