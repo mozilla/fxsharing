@@ -137,10 +137,3 @@ make test
 ```
 
 Tests use [pytest](https://docs.pytest.org/) with [pytest-django](https://pytest-django.readthedocs.io/). CI runs tests automatically on all pull requests.
-
-## Prototype limitations
-
-This is an early prototype. Known gaps before production:
-
-- No rate limiting
-- No content safety review (Cinder integration planned)

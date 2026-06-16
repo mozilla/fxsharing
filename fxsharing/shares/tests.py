@@ -926,6 +926,7 @@ class TestTsWebhook(TestCase):
     def setUpTestData(cls):
         cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6webhook")
         cls.share = Share.objects.create(title="Sample", user=cls.user)
+        cls.link = Link.objects.create(share=cls.share, url="https://example.com")
 
     def _signed_post(self, payload):
         body = json.dumps(payload).encode("utf-8")
@@ -941,27 +942,24 @@ class TestTsWebhook(TestCase):
             HTTP_X_CINDER_SIGNATURE=sig,
         )
 
-    def _decision_payload(self, share, enforcement_actions):
+    def _decision_payload(self, link, enforcement_actions):
         return {
             "event": "decision.created",
             "payload": {
                 "enforcement_actions": enforcement_actions,
                 "entity": {
-                    "entity_schema": "fxsharing",
+                    "entity_schema": "fxsharing_url",
                     "attributes": {
-                        "id": str(share.id),
-                        "shortcode": share.shortcode,
-                        "title": share.title,
-                        "reason": "test",
+                        "id": str(link.id),
+                        "url": link.url,
+                        "title": link.title,
                     },
                 },
             },
         }
 
     def test_rejects_invalid_signature(self):
-        payload = self._decision_payload(
-            self.share, ["link-collections-dont-publish-collection"]
-        )
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
         response = self.client.post(
             reverse("ts_webhook"),
             data=json.dumps(payload),
@@ -972,27 +970,50 @@ class TestTsWebhook(TestCase):
         self.share.refresh_from_db()
         assert self.share.status == ShareStatus.ACTIVE
 
-    def test_dont_publish_blocks_share(self):
-        payload = self._decision_payload(
-            self.share, ["link-collections-dont-publish-collection"]
+    def test_high_risk_url_blocks_share(self):
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.BLOCKED
+
+    def test_approve_decision_does_not_block_share(self):
+        payload = self._decision_payload(self.link, [])
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
+
+    def test_unknown_link_id_returns_200(self):
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
+        payload["payload"]["entity"]["attributes"]["id"] = (
+            "00000000-0000-0000-0000-000000000000"
         )
         response = self._signed_post(payload)
-        assert response.status_code == 201
+        assert response.status_code == 200
+        assert response.json()["fxsharing"]["handled"] is False
         self.share.refresh_from_db()
-        assert self.share.status == ShareStatus.BLOCKED
+        assert self.share.status == ShareStatus.ACTIVE
 
-    def test_ban_user_blocks_all_shares_for_that_user(self):
-        other_share = Share.objects.create(title="Other", user=self.user)
-        bystander_user = User.objects.create_user(fxa_id="a1b2c3d4e5f6bystand")
-        bystander_share = Share.objects.create(title="Bystander", user=bystander_user)
+    def test_unexpected_entity_schema_returns_200(self):
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
+        payload["payload"]["entity"]["entity_schema"] = "something_else"
+        response = self._signed_post(payload)
+        assert response.status_code == 200
+        assert response.json()["fxsharing"]["handled"] is False
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
 
-        payload = self._decision_payload(self.share, ["link-collections-ban-user"])
+    def test_sibling_share_unaffected(self):
+        other_user = User.objects.create_user(fxa_id="a1b2c3d4e5f6sibling")
+        sibling_share = Share.objects.create(title="Sibling", user=other_user)
+        Link.objects.create(share=sibling_share, url="https://sibling.example")
+
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
         response = self._signed_post(payload)
         assert response.status_code == 201
 
         self.share.refresh_from_db()
-        other_share.refresh_from_db()
-        bystander_share.refresh_from_db()
+        sibling_share.refresh_from_db()
         assert self.share.status == ShareStatus.BLOCKED
-        assert other_share.status == ShareStatus.BLOCKED
-        assert bystander_share.status == ShareStatus.ACTIVE
+        assert sibling_share.status == ShareStatus.ACTIVE
