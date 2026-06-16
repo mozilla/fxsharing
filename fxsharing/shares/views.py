@@ -20,13 +20,10 @@ from django.views.decorators.http import require_POST
 import requests
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
-from opentelemetry import trace
 
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
 from .tasks import check_link_safety, fetch_link_preview
-
-tracer = trace.get_tracer(__name__)
 
 log = logging.getLogger(__name__)
 
@@ -73,12 +70,6 @@ def view_share(request, shortcode):
                 shares.append(link)
             else:
                 link_count += 1
-
-    with tracer.start_as_current_span("share.view") as span:
-        span.set_attribute("share.shortcode", shortcode)
-        span.set_attribute("share.status", share.status)
-        span.set_attribute("share.link_count", link_count)
-        span.set_attribute("share.is_nested", share.parent_share_id is not None)
 
     return render(
         request,
@@ -212,8 +203,6 @@ def create_share(request):
 
     # Cap how many active (non-deleted, non-expired) shares a user may hold.
     if active_share_count(request.user) >= settings.MAX_ACTIVE_SHARES:
-        with tracer.start_as_current_span("share.create") as span:
-            span.set_attribute("share.outcome", "limit_reached")
         return JsonResponse(
             {"error": "You have reached the maximum number of active shares."},
             status=429,
@@ -221,19 +210,15 @@ def create_share(request):
 
     # Always create a fresh share page so a user can generate a new link
     # from the same tab group each time they share.
-    with tracer.start_as_current_span("share.create") as span:
-        span.set_attribute("share.outcome", "created")
-        span.set_attribute("share.link_count", len(data.get("links", [])))
-        share = create_share_from_data(data=data, user=request.user)
-        span.set_attribute("share.shortcode", share.shortcode)
-        # TODO - enqueue a job instead, so we don't block the response on Cinder responding
-        try:
-            report_link_sharing_quality(share)
-        except requests.RequestException:
-            log.exception("Cinder quality report failed for share %s", share.id)
+    share = create_share_from_data(data=data, user=request.user)
+    # TODO - enqueue a job instead, so we don't block the response on Cinder responding
+    try:
+        report_link_sharing_quality(share)
+    except requests.RequestException:
+        log.exception("Cinder quality report failed for share %s", share.id)
 
-        url = request.build_absolute_uri(f"/{share.shortcode}")
-        return JsonResponse({"url": url}, status=201)
+    url = request.build_absolute_uri(f"/{share.shortcode}")
+    return JsonResponse({"url": url}, status=201)
 
 
 VALID_REPORT_REASONS = {"copyright", "harmful", "spam", "other"}
@@ -251,14 +236,10 @@ def report_share(request, shortcode):
         return HttpResponseBadRequest(f"Invalid reason: {reason}")
 
     share = get_object_or_404(Share, shortcode=shortcode)
-    with tracer.start_as_current_span("share.report") as span:
-        span.set_attribute("share.shortcode", shortcode)
-        span.set_attribute("report.reason", reason)
-        # Only transition ACTIVE shares
-        updated = Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
-            status=ShareStatus.UNDER_REVIEW
-        )
-        span.set_attribute("share.transitioned", updated > 0)
+    # Only transition ACTIVE shares
+    Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
+        status=ShareStatus.UNDER_REVIEW
+    )
 
     messages.success(request, "Your report has been submitted")
     return redirect(reverse("view_share", args=[shortcode]))
@@ -285,12 +266,6 @@ def record_client_event(request):
     event_type = data.get("event_type", "")
     if event_type not in VALID_CLIENT_EVENTS:
         return HttpResponseBadRequest(f"Unknown event type: {event_type}")
-
-    properties = data.get("properties", {})
-    with tracer.start_as_current_span(f"client.{event_type}") as span:
-        for key, value in properties.items():
-            if isinstance(value, (str, int, float, bool)):
-                span.set_attribute(key, value)
 
     return HttpResponse(status=204)
 
