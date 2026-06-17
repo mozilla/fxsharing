@@ -1,0 +1,69 @@
+.login-callout {
+  padding: var(--space-large);
+}
+
+.login-callout .error-callout-copy {
+  width: 320px;
+  max-width: 100%;
+}
+
+.login-callout .error-callout-image {
+  height: 220px;
+  width: auto;
+  max-width: 100%;
+  border-radius: var(--border-radius-large);
+}
+
+@media (prefers-color-scheme: dark) {
+  .login-callout .error-callout-image {
+    content: url("/static/assets/kit-landing-dark.svg");
+  }
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-small);
+  width: 100%;
+  margin-block-start: var(--space-large);
+}
+
+.login-form .login-email,
+.login-form button {
+  width: 100%;
+  margin-inline: 0;
+  box-sizing: border-box;
+}
+
+.error-callout-copy .login-policy {
+  width: 100%;
+  margin-block-start: var(--space-large);
+  padding-block-start: var(--space-large);
+  border-block-start: 1px solid var(--border-color);
+  color: var(--text-color-deemphasized);
+  font-size: var(--font-size-small);
+  text-align: start;
+}
+
+.login-policy a,
+.login-policy a:visited,
+.login-policy a:hover {
+  color: var(--text-color-deemphasized);
+  text-decoration: underline;
+}
+
+@media (min-width: 820px) {
+  .login-callout .error-callout-image {
+    height: 400px;
+  }
+
+
+  .login-callout {
+    align-items: stretch;
+  }
+
+  .login-callout .error-callout-copy > :first-child,
+  .login-callout .login-policy {
+    margin-block-start: auto;
+  }
+}
