@@ -21,6 +21,7 @@ from celery import group
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 
+from . import metrics
 from .cinder_schema import decision_created_schema
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
@@ -58,6 +59,7 @@ def view_share(request, shortcode):
             else:
                 link_count += 1
 
+    metrics.share_viewed.add(1)
     return render(
         request,
         "shares/view_share.html",
@@ -161,6 +163,7 @@ def create_share(request):
                 request.session["pending_link_count"] = link_count
         except (json.JSONDecodeError, TypeError):
             pass
+        metrics.share_created.add(1, {"outcome": "unauthenticated"})
         return HttpResponse(status=401)
 
     try:
@@ -168,13 +171,16 @@ def create_share(request):
         validate(instance=data, schema=share_schema)
 
     except json.JSONDecodeError:
+        metrics.share_created.add(1, {"outcome": "invalid"})
         return HttpResponseBadRequest("Invalid JSON in request body")
 
     except ValidationError as e:
+        metrics.share_created.add(1, {"outcome": "invalid"})
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
 
     # Cap how many active (non-deleted, non-expired) shares a user may hold.
     if active_share_count(request.user) >= settings.MAX_ACTIVE_SHARES:
+        metrics.share_created.add(1, {"outcome": "limit_reached"})
         return JsonResponse(
             {"error": "You have reached the maximum number of active shares."},
             status=429,
@@ -186,6 +192,7 @@ def create_share(request):
     # TODO - enqueue a job instead, so we don't block the response on Cinder responding
     check_link_sharing_quality(share)
 
+    metrics.share_created.add(1, {"outcome": "created"})
     url = request.build_absolute_uri(f"/{share.shortcode}")
     return JsonResponse({"url": url}, status=201)
 
@@ -210,6 +217,7 @@ def report_share(request, shortcode):
         status=ShareStatus.UNDER_REVIEW
     )
 
+    metrics.share_reported.add(1)
     messages.success(request, "Your report has been submitted")
     return redirect(reverse("view_share", args=[shortcode]))
 
@@ -236,6 +244,7 @@ def record_client_event(request):
     if event_type not in VALID_CLIENT_EVENTS:
         return HttpResponseBadRequest(f"Unknown event type: {event_type}")
 
+    metrics.client_event.add(1, {"event_type": event_type})
     return HttpResponse(status=204)
 
 

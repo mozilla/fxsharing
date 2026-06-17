@@ -561,6 +561,126 @@ class TestRecordClientEvent(TestCase):
         assert response.status_code == 405
 
 
+class TestProductMetrics(TestCase):
+    """Product counters fire on the right outcomes with low-cardinality attrs.
+
+    The counters are patched on the metrics module so the assertions don't
+    depend on a live OTel exporter (none is active in tests).
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6metrics")
+
+    def _payload(self):
+        return json.dumps(
+            {
+                "type": "tabs",
+                "title": "My Links",
+                "links": [{"url": "https://example.com", "title": "Example"}],
+            }
+        )
+
+    def test_view_increments_share_viewed_on_live_share(self):
+        share = Share.objects.create(title="Live", user=self.user)
+        with patch("fxsharing.shares.metrics.share_viewed") as counter:
+            self.client.get(reverse("view_share", args=[share.shortcode]))
+        counter.add.assert_called_once_with(1)
+
+    def test_view_does_not_increment_for_expired_share(self):
+        share = Share.objects.create(
+            title="Gone", user=self.user, status=ShareStatus.EXPIRED
+        )
+        with patch("fxsharing.shares.metrics.share_viewed") as counter:
+            self.client.get(reverse("view_share", args=[share.shortcode]))
+        counter.add.assert_not_called()
+
+    def test_create_increments_with_created_outcome(self):
+        self.client.force_login(self.user)
+        with patch("fxsharing.shares.metrics.share_created") as counter:
+            response = self.client.post(
+                reverse("create_share"),
+                data=self._payload(),
+                content_type="application/json",
+            )
+        assert response.status_code == 201
+        counter.add.assert_called_once_with(1, {"outcome": "created"})
+
+    @override_settings(MAX_ACTIVE_SHARES=1)
+    def test_create_increments_with_limit_reached_outcome(self):
+        self.client.force_login(self.user)
+        Share.objects.create(
+            title="Existing",
+            user=self.user,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        with patch("fxsharing.shares.metrics.share_created") as counter:
+            response = self.client.post(
+                reverse("create_share"),
+                data=self._payload(),
+                content_type="application/json",
+            )
+        assert response.status_code == 429
+        counter.add.assert_called_once_with(1, {"outcome": "limit_reached"})
+
+    def test_create_increments_with_unauthenticated_outcome(self):
+        with patch("fxsharing.shares.metrics.share_created") as counter:
+            response = self.client.post(
+                reverse("create_share"),
+                data=self._payload(),
+                content_type="application/json",
+            )
+        assert response.status_code == 401
+        counter.add.assert_called_once_with(1, {"outcome": "unauthenticated"})
+
+    def test_create_increments_with_invalid_outcome(self):
+        self.client.force_login(self.user)
+        with patch("fxsharing.shares.metrics.share_created") as counter:
+            response = self.client.post(
+                reverse("create_share"),
+                data="not json",
+                content_type="application/json",
+            )
+        assert response.status_code == 400
+        counter.add.assert_called_once_with(1, {"outcome": "invalid"})
+
+    def test_report_increments_share_reported(self):
+        share = Share.objects.create(title="Reported", user=self.user)
+        with patch("fxsharing.shares.metrics.share_reported") as counter:
+            self.client.post(
+                reverse("report_share", args=[share.shortcode]),
+                data={"reason": "spam"},
+            )
+        counter.add.assert_called_once_with(1)
+
+    def test_invalid_report_does_not_increment(self):
+        share = Share.objects.create(title="Reported", user=self.user)
+        with patch("fxsharing.shares.metrics.share_reported") as counter:
+            self.client.post(
+                reverse("report_share", args=[share.shortcode]),
+                data={"reason": "notareason"},
+            )
+        counter.add.assert_not_called()
+
+    def test_client_event_increments_with_event_type(self):
+        with patch("fxsharing.shares.metrics.client_event") as counter:
+            self.client.post(
+                reverse("record_client_event"),
+                data=json.dumps({"event_type": "copy_link", "properties": {}}),
+                content_type="application/json",
+            )
+        counter.add.assert_called_once_with(1, {"event_type": "copy_link"})
+
+    def test_unknown_client_event_does_not_increment(self):
+        with patch("fxsharing.shares.metrics.client_event") as counter:
+            self.client.post(
+                reverse("record_client_event"),
+                data=json.dumps({"event_type": "bogus", "properties": {}}),
+                content_type="application/json",
+            )
+        counter.add.assert_not_called()
+
+
 class TestSoftDeleteShare(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -773,6 +893,34 @@ class TestBaseTaskWithRetry(TestCase):
         dlq = DeadLetterTask.objects.get(task_name=_always_failing_task.name)
         assert dlq.exception_class == "ValueError"
         assert dlq.args == ["payload"]
+
+    def test_on_retry_increments_task_retried(self):
+        with patch("fxsharing.shares.metrics.task_retried") as counter:
+            _always_failing_task.on_retry(
+                exc=ValueError("boom"),
+                task_id="task-xyz",
+                args=("hi",),
+                kwargs={},
+                einfo=None,
+            )
+        counter.add.assert_called_once_with(
+            1, {"task": _always_failing_task.name, "exception_class": "ValueError"}
+        )
+
+    def test_on_failure_increments_task_deadlettered(self):
+        einfo = MagicMock()
+        einfo.traceback = "ValueError: boom"
+        with patch("fxsharing.shares.metrics.task_deadlettered") as counter:
+            _always_failing_task.on_failure(
+                exc=ValueError("boom"),
+                task_id="task-xyz",
+                args=("hi",),
+                kwargs={},
+                einfo=einfo,
+            )
+        counter.add.assert_called_once_with(
+            1, {"task": _always_failing_task.name, "exception_class": "ValueError"}
+        )
 
 
 @override_settings(DEBUG=True)
