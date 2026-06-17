@@ -22,10 +22,17 @@ from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 
 from . import metrics
+from .cinder_policies import (
+    BADNESS_BAN,
+    BADNESS_STRIKE,
+    BAN_THRESHOLD,
+    POLICY_MINOR_EXPLOITATION_ID,
+    SHARE_REPORT_POLICY_BADNESS,
+)
 from .cinder_schema import decision_created_schema
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
-from .tasks import fetch_link_preview, submit_link_to_cinder
+from .tasks import fetch_link_preview, submit_link_to_cinder, submit_share_to_cinder
 
 log = logging.getLogger(__name__)
 
@@ -189,7 +196,6 @@ def create_share(request):
     # Always create a fresh share page so a user can generate a new link
     # from the same tab group each time they share.
     share = create_share_from_data(data=data, user=request.user)
-    # TODO - enqueue a job instead, so we don't block the response on Cinder responding
     check_link_sharing_quality(share)
 
     metrics.share_created.add(1, {"outcome": "created"})
@@ -212,12 +218,15 @@ def report_share(request, shortcode):
         return HttpResponseBadRequest(f"Invalid reason: {reason}")
 
     share = get_object_or_404(Share, shortcode=shortcode)
+
     # Only transition ACTIVE shares
     Share.objects.filter(pk=share.pk, status=ShareStatus.ACTIVE).update(
         status=ShareStatus.UNDER_REVIEW
     )
 
     metrics.share_reported.add(1)
+    submit_share_to_cinder.delay_on_commit(str(share.pk), reason)
+
     messages.success(request, "Your report has been submitted")
     return redirect(reverse("view_share", args=[shortcode]))
 
@@ -301,6 +310,122 @@ def server_error(request):
     return render(request, "shares/500.html", status=500)
 
 
+def _handle_link_decision(link_id, enforcement_actions, payload):
+    try:
+        link = Link.objects.select_related("share", "share__user").get(id=link_id)
+    except (Link.DoesNotExist, DjangoValidationError, ValueError) as exc:
+        log.warning("Webhook for unknown link id %s; ignoring", link_id)
+        raise CinderWebhookIgnoredError("unknown link id") from exc
+
+    # Note we only take action if a URL comes back as high risk - URLs are not
+    # otherwise marked as safe.
+    if "link-collections-high-risk-url" not in enforcement_actions:
+        return
+
+    # Get the affected share IDs, accounting for possible share nesting.
+    share_ids = []
+    share = link.share
+    while share is not None:
+        share_ids.append(share.pk)
+        share = share.parent_share
+    Share.objects.filter(pk__in=share_ids).update(status=ShareStatus.BLOCKED)
+    log.info(
+        "Blocked (possibly nested) shares %s due to high-risk URL %s",
+        share_ids,
+        link.id,
+    )
+
+    # Increment the user's badness score.
+    policy_ids = {(p or {}).get("id") for p in payload.get("policies") or []}
+    delta = (
+        BADNESS_BAN if POLICY_MINOR_EXPLOITATION_ID in policy_ids else BADNESS_STRIKE
+    )
+    _record_badness(link.share.user, delta, source_link_id=link.id)
+
+
+def _handle_share_decision(share_id, enforcement_actions, payload):
+    try:
+        share = Share.objects.select_related("user").get(id=share_id)
+    except (Share.DoesNotExist, DjangoValidationError, ValueError) as exc:
+        log.warning("Webhook for unknown share id %s; ignoring", share_id)
+        raise CinderWebhookIgnoredError("unknown share id") from exc
+
+    if "link-collections-publish-collection" in enforcement_actions:
+        # Only re-activate shares that are currently UNDER_REVIEW.
+        Share.objects.filter(pk=share.pk, status=ShareStatus.UNDER_REVIEW).update(
+            status=ShareStatus.ACTIVE
+        )
+        log.info("Share %s approved by report review", share.pk)
+        return
+
+    if "link-collections-dont-publish-collection" in enforcement_actions:
+        share_ids = []
+        cursor = share
+        while cursor is not None:
+            share_ids.append(cursor.pk)
+            cursor = cursor.parent_share
+        Share.objects.filter(pk__in=share_ids).update(status=ShareStatus.BLOCKED)
+        log.info(
+            "Blocked (possibly nested) shares %s after human review decision", share_ids
+        )
+
+        policy_ids = {(p or {}).get("id") for p in payload.get("policies") or []}
+        deltas = [
+            SHARE_REPORT_POLICY_BADNESS[pid]
+            for pid in policy_ids
+            if pid in SHARE_REPORT_POLICY_BADNESS
+        ]
+        if deltas:
+            # If multiple policies were violated, pick the worst one to increment
+            # the user's badness score.
+            _record_badness(share.user, max(deltas), source_share_id=share.id)
+        else:
+            log.warning(
+                "Share %s dont-publish decision cited unmapped policies %s; "
+                "no badness applied",
+                share.pk,
+                policy_ids,
+            )
+        return
+
+    log.info(
+        "fxsharing decision.created for share %s actions=%s (no recognized action)",
+        share_id,
+        enforcement_actions,
+    )
+
+
+def _record_badness(user, delta, source_link_id=None, source_share_id=None):
+    """Increment ``user.badness_counter`` and ban if the threshold is hit.
+
+    TODO (FIDEFE-8646): enforce idempotency on ``payload.source.decision.id``
+    so a Cinder retry of the same decision doesn't double-increment badness
+    score.
+    """
+    User = get_user_model()
+    # Use F() increment for atomicity
+    User.objects.filter(pk=user.pk).update(
+        badness_counter=models.F("badness_counter") + delta,
+    )
+    user.refresh_from_db(fields=["badness_counter", "is_banned"])
+    log.info(
+        "User %s badness +%d -> %d (source link %s share %s)",
+        user.pk,
+        delta,
+        user.badness_counter,
+        source_link_id,
+        source_share_id,
+    )
+    if user.badness_counter >= BAN_THRESHOLD and not user.is_banned:
+        User.objects.filter(pk=user.pk).update(is_banned=True)
+        Share.objects.filter(user=user).update(status=ShareStatus.BLOCKED)
+        log.info(
+            "User %s banned at badness %d; all shares blocked",
+            user.pk,
+            user.badness_counter,
+        )
+
+
 # Webhook listener that ingests responses from Cinder.
 @require_POST
 @csrf_exempt
@@ -342,7 +467,15 @@ def ts_webhook(request):
 
                 entity = payload.get("entity") or {}
                 entity_schema = entity.get("entity_schema")
-                if entity_schema != "fxsharing_url":
+                attributes = entity.get("attributes") or {}
+                entity_id = attributes.get("id")
+                enforcement_actions = payload.get("enforcement_actions") or []
+
+                if entity_schema == "fxsharing_url":
+                    _handle_link_decision(entity_id, enforcement_actions, payload)
+                elif entity_schema == "fxsharing":
+                    _handle_share_decision(entity_id, enforcement_actions, payload)
+                else:
                     log.warning(
                         "Webhook for unexpected entity_schema %r; ignoring",
                         entity_schema,
@@ -356,41 +489,6 @@ def ts_webhook(request):
                             }
                         },
                         status=200,
-                    )
-
-                link_id = (entity.get("attributes") or {}).get("id")
-                try:
-                    link = Link.objects.select_related("share").get(id=link_id)
-                except (Link.DoesNotExist, DjangoValidationError, ValueError):
-                    log.warning("Webhook for unknown link id %s; ignoring", link_id)
-                    return JsonResponse(
-                        {
-                            "fxsharing": {
-                                "received": True,
-                                "handled": False,
-                                "not_handled_reason": "unknown link id",
-                            }
-                        },
-                        status=200,
-                    )
-
-                # We block the share if it contains any high risk URL; in the
-                # case of nested shares, we block all the parent shares too.
-                # We don't currently do anything with medium/low risk URLs.
-                enforcement_actions = payload.get("enforcement_actions") or []
-                if "link-collections-high-risk-url" in enforcement_actions:
-                    share_ids = []
-                    share = link.share
-                    while share is not None:
-                        share_ids.append(share.pk)
-                        share = share.parent_share
-                    Share.objects.filter(pk__in=share_ids).update(
-                        status=ShareStatus.BLOCKED,
-                    )
-                    log.info(
-                        "Blocked possibly nested shares %s due to high-risk URL %s",
-                        share_ids,
-                        link.id,
                     )
 
             case "job.actioned":

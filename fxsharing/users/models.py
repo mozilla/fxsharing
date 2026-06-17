@@ -33,6 +33,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     fxa_id = models.CharField(max_length=32, unique=True)
     is_banned = models.BooleanField(default=False)
+    # Accumulates per-link policy hits from Cinder: +1 for a Web Risk match,
+    # +3 for an NCMEC/CSAM match. At or above BAN_THRESHOLD the user is
+    # permanently banned and all their shares are blocked.
+    badness_counter = models.PositiveSmallIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

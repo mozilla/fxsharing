@@ -329,3 +329,48 @@ def submit_link_to_cinder(link_id):
         timeout=10,
     )
     response.raise_for_status()
+
+
+def build_cinder_share_report_event(share, reason):
+    return {
+        "event_name": "link_collections_reporting",
+        "entity": {
+            "entity_schema": "fxsharing",
+            "attributes": {
+                "id": str(share.id),
+                "shortcode": share.shortcode,
+                "title": share.title,
+                "reason": f"User-reported abuse: {reason}",
+            },
+        },
+    }
+
+
+@shared_task(
+    base=BaseTaskWithRetry,
+    autoretry_for=(requests.exceptions.RequestException,),
+)
+def submit_share_to_cinder(share_id, reason):
+    from .models import Share
+
+    if not settings.CINDER_URL:
+        logger.error("submit_share_to_cinder: CINDER_URL not set!")
+        return
+    if not settings.CINDER_API_TOKEN:
+        logger.error("submit_share_to_cinder: CINDER_API_TOKEN not set!")
+        return
+
+    try:
+        share = Share.objects.get(id=share_id)
+    except Share.DoesNotExist:
+        logger.warning("submit_share_to_cinder: share %s does not exist", share_id)
+        return
+
+    payload = build_cinder_share_report_event(share, reason)
+    response = requests.post(
+        settings.CINDER_API_ENDPOINT,
+        json=payload,
+        headers={"Authorization": f"Bearer {settings.CINDER_API_TOKEN}"},
+        timeout=10,
+    )
+    response.raise_for_status()

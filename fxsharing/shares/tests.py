@@ -514,6 +514,21 @@ class TestReportShare(TestCase):
         )
         assert response.status_code == 400
 
+    def test_report_dispatches_submit_share_to_cinder_task(self):
+        from fxsharing.shares import views
+
+        share = Share.objects.create(title="Test Share", user=self.user)
+        self.client.post(
+            reverse("report_share", args=[share.shortcode]),
+            data={"reason": "spam"},
+        )
+
+        # conftest patches submit_share_to_cinder in views to a MagicMock;
+        # .delay_on_commit is the call we count.
+        views.submit_share_to_cinder.delay_on_commit.assert_called_once_with(
+            str(share.pk), "spam"
+        )
+
 
 class TestRecordClientEvent(TestCase):
     def test_valid_event_returns_204(self):
@@ -1103,8 +1118,8 @@ class TestTsWebhook(TestCase):
             HTTP_X_CINDER_SIGNATURE=sig,
         )
 
-    def _decision_payload(self, link, enforcement_actions):
-        return {
+    def _decision_payload(self, link, enforcement_actions, policy_ids=None):
+        payload = {
             "event": "decision.created",
             "payload": {
                 "enforcement_actions": enforcement_actions,
@@ -1118,6 +1133,28 @@ class TestTsWebhook(TestCase):
                 },
             },
         }
+        if policy_ids:
+            payload["payload"]["policies"] = [{"id": pid} for pid in policy_ids]
+        return payload
+
+    def _share_decision_payload(self, share, enforcement_actions, policy_ids=None):
+        payload = {
+            "event": "decision.created",
+            "payload": {
+                "enforcement_actions": enforcement_actions,
+                "entity": {
+                    "entity_schema": "fxsharing",
+                    "attributes": {
+                        "id": str(share.id),
+                        "shortcode": share.shortcode,
+                        "title": share.title,
+                    },
+                },
+            },
+        }
+        if policy_ids:
+            payload["payload"]["policies"] = [{"id": pid} for pid in policy_ids]
+        return payload
 
     def test_rejects_invalid_signature(self):
         payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
@@ -1213,6 +1250,171 @@ class TestTsWebhook(TestCase):
         self.share.refresh_from_db()
         assert self.share.status == ShareStatus.ACTIVE
 
+    # ----- Badness counter on the fxsharing_url branch -----
+
+    def test_high_risk_url_records_strike_badness(self):
+        from fxsharing.shares.cinder_policies import BADNESS_STRIKE
+
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+
+        self.user.refresh_from_db()
+        assert self.user.badness_counter == BADNESS_STRIKE
+        assert self.user.is_banned is False
+
+    def test_high_risk_url_with_csam_policy_bans_user_and_blocks_all_shares(self):
+        from fxsharing.shares.cinder_policies import (
+            BADNESS_BAN,
+            POLICY_MINOR_EXPLOITATION_ID,
+        )
+
+        # A second share owned by the same user that the cascade should sweep.
+        other_share = Share.objects.create(title="Other", user=self.user)
+
+        payload = self._decision_payload(
+            self.link,
+            ["link-collections-high-risk-url"],
+            policy_ids=[POLICY_MINOR_EXPLOITATION_ID],
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+
+        self.user.refresh_from_db()
+        assert self.user.badness_counter == BADNESS_BAN
+        assert self.user.is_banned is True
+
+        self.share.refresh_from_db()
+        other_share.refresh_from_db()
+        assert self.share.status == ShareStatus.BLOCKED
+        assert other_share.status == ShareStatus.BLOCKED
+
+    def test_repeated_strikes_eventually_ban_user(self):
+        # Three separate links, three separate strikes — third one trips the
+        # threshold and the cascade blocks even unrelated shares.
+        other_share = Share.objects.create(title="Other", user=self.user)
+        link2 = Link.objects.create(share=self.share, url="https://b.example")
+        link3 = Link.objects.create(share=self.share, url="https://c.example")
+
+        for link in (self.link, link2, link3):
+            payload = self._decision_payload(link, ["link-collections-high-risk-url"])
+            response = self._signed_post(payload)
+            assert response.status_code == 201
+
+        self.user.refresh_from_db()
+        assert self.user.badness_counter == 3
+        assert self.user.is_banned is True
+        other_share.refresh_from_db()
+        assert other_share.status == ShareStatus.BLOCKED
+
+    # ----- fxsharing entity branch (share-report decisions) -----
+
+    def test_share_publish_decision_returns_under_review_to_active(self):
+        self.share.status = ShareStatus.UNDER_REVIEW
+        self.share.save(update_fields=["status"])
+
+        payload = self._share_decision_payload(
+            self.share, ["link-collections-publish-collection"]
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
+
+    def test_share_publish_decision_does_not_unblock_blocked_share(self):
+        # A high-risk link decision could have moved the share to BLOCKED
+        # while the report review was pending; publish must not override it.
+        self.share.status = ShareStatus.BLOCKED
+        self.share.save(update_fields=["status"])
+
+        payload = self._share_decision_payload(
+            self.share, ["link-collections-publish-collection"]
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.BLOCKED
+
+    def test_share_dont_publish_blocks_lineage_and_records_badness(self):
+        from fxsharing.shares.cinder_policies import (
+            BADNESS_STRIKE,
+            POLICY_SPAM_ID,
+        )
+
+        nested = Share.objects.create(
+            title="Nested", user=self.user, parent_share=self.share
+        )
+
+        payload = self._share_decision_payload(
+            nested,
+            ["link-collections-dont-publish-collection"],
+            policy_ids=[POLICY_SPAM_ID],
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+
+        self.share.refresh_from_db()
+        nested.refresh_from_db()
+        assert self.share.status == ShareStatus.BLOCKED
+        assert nested.status == ShareStatus.BLOCKED
+
+        self.user.refresh_from_db()
+        assert self.user.badness_counter == BADNESS_STRIKE
+
+    def test_share_dont_publish_with_unmapped_policy_blocks_but_no_badness(self):
+        # An unknown policy UUID should still block the lineage but should
+        # not push badness — the dont-publish action alone is enough to
+        # take down the share even when we can't weight the policy.
+        payload = self._share_decision_payload(
+            self.share,
+            ["link-collections-dont-publish-collection"],
+            policy_ids=["00000000-0000-0000-0000-000000000000"],
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.BLOCKED
+
+        self.user.refresh_from_db()
+        assert self.user.badness_counter == 0
+        assert self.user.is_banned is False
+
+    def test_share_dont_publish_with_multiple_policies_uses_max_delta(self):
+        # When Cinder cites both a STRIKE-weighted policy and a BAN-weighted
+        # policy on the same decision we take max(deltas), not the sum, so
+        # one decision can't accidentally double-count.
+        from fxsharing.shares.cinder_policies import (
+            BADNESS_BAN,
+            POLICY_MINOR_EXPLOITATION_ID,
+            POLICY_SPAM_ID,
+        )
+
+        payload = self._share_decision_payload(
+            self.share,
+            ["link-collections-dont-publish-collection"],
+            policy_ids=[POLICY_SPAM_ID, POLICY_MINOR_EXPLOITATION_ID],
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+
+        self.user.refresh_from_db()
+        assert self.user.badness_counter == BADNESS_BAN
+        assert self.user.is_banned is True
+
+    def test_share_decision_unknown_share_id_returns_200(self):
+        payload = self._share_decision_payload(
+            self.share, ["link-collections-publish-collection"]
+        )
+        payload["payload"]["entity"]["attributes"]["id"] = (
+            "00000000-0000-0000-0000-000000000000"
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 200
+        assert response.json()["fxsharing"]["handled"] is False
+
 
 @override_settings(
     CINDER_URL="https://cinder.example.test",
@@ -1277,6 +1479,57 @@ class TestSubmitLinkToCinder(TestCase):
         # Celery copies the matching task_annotations onto the task at app
         # finalize-time, so the live task carries the value from settings.
         assert submit_link_to_cinder.rate_limit == settings.CINDER_TASK_RATE_LIMIT
+
+
+@override_settings(
+    CINDER_URL="https://cinder.example.test",
+    CINDER_API_TOKEN="t",  # noqa: S106
+    CINDER_API_ENDPOINT="https://cinder.example.test/api/v2/workflows/event/",
+)
+class TestSubmitShareToCinder(TestCase):
+    """Task-level coverage: the Celery task that POSTs a reported share."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6shtask")
+
+    def test_payload_validates_against_schema(self):
+        from jsonschema import validate
+
+        from fxsharing.shares.cinder_schema import share_report_event_schema
+        from fxsharing.shares.tasks import submit_share_to_cinder
+
+        share = Share.objects.create(title="t", user=self.user, type="tabs")
+
+        with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.raise_for_status = lambda: None
+            submit_share_to_cinder(str(share.id), "spam")
+
+        assert mock_post.call_count == 1
+        payload = mock_post.call_args.kwargs["json"]
+        # Raises if the task's constructed payload drifts from the schema.
+        validate(payload, share_report_event_schema)
+        assert payload["entity"]["attributes"]["id"] == str(share.id)
+        assert payload["entity"]["attributes"]["shortcode"] == share.shortcode
+        assert "spam" in payload["entity"]["attributes"]["reason"]
+
+    def test_no_call_when_cinder_url_unset(self):
+        from fxsharing.shares.tasks import submit_share_to_cinder
+
+        share = Share.objects.create(title="t", user=self.user, type="tabs")
+
+        with override_settings(CINDER_URL=""):
+            with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+                submit_share_to_cinder(str(share.id), "spam")
+        assert mock_post.call_count == 0
+
+    def test_unknown_share_id_is_noop(self):
+        from fxsharing.shares.tasks import submit_share_to_cinder
+
+        with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+            submit_share_to_cinder("00000000-0000-0000-0000-000000000000", "spam")
+        assert mock_post.call_count == 0
 
 
 @override_settings(
