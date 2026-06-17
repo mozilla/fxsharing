@@ -11,6 +11,7 @@ from celery.utils.log import get_task_logger
 from google.cloud import storage
 
 from fxsharing.shares.models import SafetyStatus
+from fxsharing.shares.url_safety import UnsafeURLError, safe_get
 
 logger = get_task_logger(__name__)
 
@@ -35,7 +36,12 @@ def download_and_store_favicon(favicon_url, link_id, headers):
         return None
 
     try:
-        resp = requests.get(favicon_url, headers=headers, timeout=10)
+        resp = safe_get(
+            favicon_url,
+            headers=headers,
+            timeout=10,
+            max_redirects=settings.MAX_REDIRECTS,
+        )
         resp.raise_for_status()
 
         content_type = (
@@ -166,13 +172,24 @@ def fetch_link_preview(link_id):
         )
     }
 
-    session = requests.Session()
-    session.max_redirects = settings.MAX_REDIRECTS
-
     try:
-        response = session.get(link.url, headers=headers, timeout=10)
+        response = safe_get(
+            link.url,
+            headers=headers,
+            timeout=10,
+            max_redirects=settings.MAX_REDIRECTS,
+        )
         response.raise_for_status()
 
+    except UnsafeURLError as e:
+        logger.warning(
+            "refusing to fetch unsafe URL %s (link_id=%s): %s",
+            link.url,
+            link_id,
+            e,
+        )
+        Link.objects.filter(id=link_id).update(safety_status=SafetyStatus.UNSAFE)
+        return  # don't retry; the target is not publicly fetchable
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 404:
             logger.warning("404 for %s (link_id=%s), skipping", link.url, link_id)
