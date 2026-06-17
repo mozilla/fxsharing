@@ -30,6 +30,10 @@ DEBUG = env("DEBUG")
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
+USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST", default=False)
+
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
 LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/auth-complete")
 
 # Max active (non-deleted) top-level shares a user may hold within the trailing
