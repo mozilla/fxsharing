@@ -1,0 +1,44 @@
+{% extends "shares/callout_page.html" %}
+{% load static %}
+
+{% block title %}Sign in to share links{% endblock %}
+
+{% block extra_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'styles/fxa_login.css' %}" />
+{% endblock %}
+
+{% block callout_extra_scripts %}
+  <script src="{% static 'scripts/fxa-login.mjs' %}" type="module"></script>
+{% endblock %}
+
+{% block callout_class %}login-callout{% endblock %}
+
+{% block image_src %}{% static 'assets/kit-landing-light.svg' %}{% endblock %}
+
+{% block heading %}Sign in to share links{% endblock %}
+
+{% block body %}
+  <p>Enter your email to get a one-time code. No password needed.</p>
+{% endblock %}
+
+{% block cta %}
+  <form class="login-form" method="post" action="{% url 'fxa_login' %}">
+    {% csrf_token %}
+    <input
+      type="email"
+      name="email"
+      class="login-email"
+      placeholder="Enter your email"
+      autocomplete="email"
+    />
+    <div class="login-actions">
+      <button type="submit" class="login-continue" data-relay-email>Continue</button>
+      <button class="login-alt">Try another way</button>
+    </div>
+  </form>
+  <p class="login-policy">
+    By sharing, you agree to our
+    <a href="https://www.mozilla.org/about/legal/acceptable-use/">Acceptable Use Policy</a>.
+  </p>
+{% endblock %}
