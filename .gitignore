@@ -199,5 +199,8 @@ Thumbs.db
 # gloud credentials for local bucket auth
 .gcloud_credentials
 
+# Collected static files (built by collectstatic, e.g. in the image)
+staticfiles/
+
 # Claude
 .claude/worktrees/

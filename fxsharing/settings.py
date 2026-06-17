@@ -233,6 +233,18 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
+# Hashed, immutable static filenames so the CDN can cache them long-term. The
+# manifest is built by `collectstatic` (run in the image build); tests override
+# this to a manifest-free backend (see conftest.py) since they skip collectstatic.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 # Sentry error reporting
 SENTRY_DSN = env("SENTRY_DSN", default="")
 if SENTRY_DSN:
