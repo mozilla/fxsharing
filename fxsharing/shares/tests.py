@@ -623,6 +623,27 @@ class TestProductMetrics(TestCase):
         assert response.status_code == 429
         counter.add.assert_called_once_with(1, {"outcome": "limit_reached"})
 
+    def test_create_increments_with_unauthenticated_outcome(self):
+        with patch("fxsharing.shares.metrics.share_created") as counter:
+            response = self.client.post(
+                reverse("create_share"),
+                data=self._payload(),
+                content_type="application/json",
+            )
+        assert response.status_code == 401
+        counter.add.assert_called_once_with(1, {"outcome": "unauthenticated"})
+
+    def test_create_increments_with_invalid_outcome(self):
+        self.client.force_login(self.user)
+        with patch("fxsharing.shares.metrics.share_created") as counter:
+            response = self.client.post(
+                reverse("create_share"),
+                data="not json",
+                content_type="application/json",
+            )
+        assert response.status_code == 400
+        counter.add.assert_called_once_with(1, {"outcome": "invalid"})
+
     def test_report_increments_share_reported(self):
         share = Share.objects.create(title="Reported", user=self.user)
         with patch("fxsharing.shares.metrics.share_reported") as counter:
@@ -882,7 +903,9 @@ class TestBaseTaskWithRetry(TestCase):
                 kwargs={},
                 einfo=None,
             )
-        counter.add.assert_called_once_with(1, {"task": _always_failing_task.name})
+        counter.add.assert_called_once_with(
+            1, {"task": _always_failing_task.name, "exception_class": "ValueError"}
+        )
 
     def test_on_failure_increments_task_deadlettered(self):
         einfo = MagicMock()

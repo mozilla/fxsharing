@@ -121,7 +121,9 @@ class BaseTaskWithRetry(DjangoTask):
                 "exception_class": type(exc).__name__,
             },
         )
-        metrics.task_retried.add(1, {"task": self.name})
+        metrics.task_retried.add(
+            1, {"task": self.name, "exception_class": type(exc).__name__}
+        )
         super().on_retry(exc, task_id, args, kwargs, einfo)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):

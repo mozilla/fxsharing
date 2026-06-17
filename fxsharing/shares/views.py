@@ -163,6 +163,7 @@ def create_share(request):
                 request.session["pending_link_count"] = link_count
         except (json.JSONDecodeError, TypeError):
             pass
+        metrics.share_created.add(1, {"outcome": "unauthenticated"})
         return HttpResponse(status=401)
 
     try:
@@ -170,9 +171,11 @@ def create_share(request):
         validate(instance=data, schema=share_schema)
 
     except json.JSONDecodeError:
+        metrics.share_created.add(1, {"outcome": "invalid"})
         return HttpResponseBadRequest("Invalid JSON in request body")
 
     except ValidationError as e:
+        metrics.share_created.add(1, {"outcome": "invalid"})
         return HttpResponseBadRequest(f"JSON validation error: {e.message}")
 
     # Cap how many active (non-deleted, non-expired) shares a user may hold.
