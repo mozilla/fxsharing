@@ -1,5 +1,5 @@
 import mimetypes
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
 
@@ -27,7 +27,7 @@ CONTENT_TYPE_TO_EXT = {
 }
 
 
-def download_and_store_favicon(favicon_url, link_id, headers):
+def download_and_store_favicon(favicon_url, link_url, headers):
     """Download favicon and upload to GCS. Returns public URL or None on failure."""
     bucket_name = settings.GCS_IMAGE_BUCKET
     if not bucket_name:
@@ -62,19 +62,23 @@ def download_and_store_favicon(favicon_url, link_id, headers):
             or mimetypes.guess_extension(content_type)
             or ".ico"
         )
-        object_name = f"favicons/{link_id}{ext}"
+
+        hostname = urlparse(link_url).hostname
+        object_name = f"favicons/{hostname}{ext}"
 
         client = storage.Client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(object_name)
+
+        # Overwrite the favicon in case the existing one is stale
         blob.upload_from_string(resp.content, content_type=content_type)
 
         return f"https://storage.googleapis.com/{bucket_name}/{object_name}"
 
     except Exception:
         logger.warning(
-            "failed to download/upload favicon for link_id=%s from %s",
-            link_id,
+            "failed to download/upload favicon for link_url=%s from %s",
+            link_url,
             favicon_url,
             exc_info=True,
         )
@@ -224,7 +228,7 @@ def fetch_link_preview(link_id):
         logger.info("No favicon found for %s. Using default /favicon.ico", link.url)
         favicon = urljoin(link.url, "/favicon.ico")
 
-    stored_favicon = download_and_store_favicon(favicon, link_id, headers)
+    stored_favicon = download_and_store_favicon(favicon, link.url, headers)
 
     # Only storing favicons for now, preview images will come later.
     Link.objects.filter(id=link_id).update(
