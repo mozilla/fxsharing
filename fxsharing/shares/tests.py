@@ -926,6 +926,7 @@ class TestTsWebhook(TestCase):
     def setUpTestData(cls):
         cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6webhook")
         cls.share = Share.objects.create(title="Sample", user=cls.user)
+        cls.link = Link.objects.create(share=cls.share, url="https://example.com")
 
     def _signed_post(self, payload):
         body = json.dumps(payload).encode("utf-8")
@@ -941,27 +942,24 @@ class TestTsWebhook(TestCase):
             HTTP_X_CINDER_SIGNATURE=sig,
         )
 
-    def _decision_payload(self, share, enforcement_actions):
+    def _decision_payload(self, link, enforcement_actions):
         return {
             "event": "decision.created",
             "payload": {
                 "enforcement_actions": enforcement_actions,
                 "entity": {
-                    "entity_schema": "fxsharing",
+                    "entity_schema": "fxsharing_url",
                     "attributes": {
-                        "id": str(share.id),
-                        "shortcode": share.shortcode,
-                        "title": share.title,
-                        "reason": "test",
+                        "id": str(link.id),
+                        "url": link.url,
+                        "title": link.title,
                     },
                 },
             },
         }
 
     def test_rejects_invalid_signature(self):
-        payload = self._decision_payload(
-            self.share, ["link-collections-dont-publish-collection"]
-        )
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
         response = self.client.post(
             reverse("ts_webhook"),
             data=json.dumps(payload),
@@ -972,27 +970,183 @@ class TestTsWebhook(TestCase):
         self.share.refresh_from_db()
         assert self.share.status == ShareStatus.ACTIVE
 
-    def test_dont_publish_blocks_share(self):
+    def test_high_risk_url_blocks_share(self):
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.BLOCKED
+
+    def test_high_risk_url_in_nested_share_blocks_entire_lineage(self):
+        nested = Share.objects.create(
+            title="Nested", user=self.user, parent_share=self.share
+        )
+        nested_link = Link.objects.create(share=nested, url="https://bad.example/x")
+
         payload = self._decision_payload(
-            self.share, ["link-collections-dont-publish-collection"]
+            nested_link, ["link-collections-high-risk-url"]
         )
         response = self._signed_post(payload)
         assert response.status_code == 201
+
         self.share.refresh_from_db()
+        nested.refresh_from_db()
         assert self.share.status == ShareStatus.BLOCKED
+        assert nested.status == ShareStatus.BLOCKED
 
-    def test_ban_user_blocks_all_shares_for_that_user(self):
-        other_share = Share.objects.create(title="Other", user=self.user)
-        bystander_user = User.objects.create_user(fxa_id="a1b2c3d4e5f6bystand")
-        bystander_share = Share.objects.create(title="Bystander", user=bystander_user)
+    def test_approve_decision_does_not_block_share(self):
+        payload = self._decision_payload(self.link, [])
+        response = self._signed_post(payload)
+        assert response.status_code == 201
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
 
-        payload = self._decision_payload(self.share, ["link-collections-ban-user"])
+    def test_unknown_link_id_returns_200(self):
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
+        payload["payload"]["entity"]["attributes"]["id"] = (
+            "00000000-0000-0000-0000-000000000000"
+        )
+        response = self._signed_post(payload)
+        assert response.status_code == 200
+        assert response.json()["fxsharing"]["handled"] is False
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
+
+    def test_unexpected_entity_schema_returns_200(self):
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
+        payload["payload"]["entity"]["entity_schema"] = "something_else"
+        response = self._signed_post(payload)
+        assert response.status_code == 200
+        assert response.json()["fxsharing"]["handled"] is False
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
+
+    def test_sibling_share_unaffected(self):
+        other_user = User.objects.create_user(fxa_id="a1b2c3d4e5f6sibling")
+        sibling_share = Share.objects.create(title="Sibling", user=other_user)
+        Link.objects.create(share=sibling_share, url="https://sibling.example")
+
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
         response = self._signed_post(payload)
         assert response.status_code == 201
 
         self.share.refresh_from_db()
-        other_share.refresh_from_db()
-        bystander_share.refresh_from_db()
+        sibling_share.refresh_from_db()
         assert self.share.status == ShareStatus.BLOCKED
-        assert other_share.status == ShareStatus.BLOCKED
-        assert bystander_share.status == ShareStatus.ACTIVE
+        assert sibling_share.status == ShareStatus.ACTIVE
+
+    def test_malformed_decision_payload_returns_400(self):
+        # Missing required `enforcement_actions` — schema rejects.
+        payload = {
+            "event": "decision.created",
+            "payload": {
+                "entity": {
+                    "entity_schema": "fxsharing_url",
+                    "attributes": {"id": str(self.link.id)},
+                },
+            },
+        }
+        response = self._signed_post(payload)
+        assert response.status_code == 400
+        assert response.json()["fxsharing"]["handled"] is False
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
+
+
+@override_settings(
+    CINDER_URL="https://cinder.example.test",
+    CINDER_API_TOKEN="t",  # noqa: S106
+    CINDER_API_ENDPOINT="https://cinder.example.test/api/v2/workflows/event/",
+)
+class TestSubmitLinkToCinder(TestCase):
+    """Task-level coverage: the Celery task that POSTs one URL to Cinder."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6task")
+
+    def test_payload_validates_against_schema(self):
+        from unittest.mock import patch
+
+        from jsonschema import validate
+
+        from fxsharing.shares.cinder_schema import workflow_event_schema
+        from fxsharing.shares.tasks import submit_link_to_cinder
+
+        share = Share.objects.create(title="t", user=self.user, type="tabs")
+        link = Link.objects.create(share=share, url="https://a.example", title="A")
+
+        with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.raise_for_status = lambda: None
+            submit_link_to_cinder(str(link.id))
+
+        assert mock_post.call_count == 1
+        payload = mock_post.call_args.kwargs["json"]
+        # Raises if the task's constructed payload drifts from the schema.
+        validate(payload, workflow_event_schema)
+        assert payload["entity"]["attributes"]["id"] == str(link.id)
+        assert payload["entity"]["attributes"]["url"] == link.url
+
+    def test_no_call_when_cinder_url_unset(self):
+        from unittest.mock import patch
+
+        from fxsharing.shares.tasks import submit_link_to_cinder
+
+        share = Share.objects.create(title="t", user=self.user, type="tabs")
+        link = Link.objects.create(share=share, url="https://a.example")
+
+        with override_settings(CINDER_URL=""):
+            with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+                submit_link_to_cinder(str(link.id))
+        assert mock_post.call_count == 0
+
+    def test_unknown_link_id_is_noop(self):
+        from unittest.mock import patch
+
+        from fxsharing.shares.tasks import submit_link_to_cinder
+
+        with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+            submit_link_to_cinder("00000000-0000-0000-0000-000000000000")
+        assert mock_post.call_count == 0
+
+    def test_rate_limit_applied_from_settings(self):
+        from fxsharing.shares.tasks import submit_link_to_cinder
+
+        # Celery copies the matching task_annotations onto the task at app
+        # finalize-time, so the live task carries the value from settings.
+        assert submit_link_to_cinder.rate_limit == settings.CINDER_TASK_RATE_LIMIT
+
+
+@override_settings(
+    CINDER_URL="https://cinder.example.test",
+    CINDER_API_TOKEN="t",  # noqa: S106
+    CINDER_API_ENDPOINT="https://cinder.example.test/api/v2/workflows/event/",
+)
+class TestCheckLinkSharingQuality(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6group")
+
+    def test_enqueues_one_signature_per_link(self):
+        from fxsharing.shares import views
+
+        share = Share.objects.create(title="t", user=self.user, type="tabs")
+        Link.objects.create(share=share, url="https://a.example")
+        Link.objects.create(share=share, url="https://b.example")
+        views.check_link_sharing_quality(share)
+
+        link_ids = {str(link.id) for link in share.links.all()}
+        called_with = {
+            call.args[0] for call in views.submit_link_to_cinder.s.call_args_list
+        }
+        assert called_with == link_ids
+
+    def test_no_enqueue_when_cinder_url_unset(self):
+        from fxsharing.shares import views
+
+        with override_settings(CINDER_URL=""):
+            share = Share.objects.create(title="t", user=self.user, type="tabs")
+            Link.objects.create(share=share, url="https://a.example")
+            views.check_link_sharing_quality(share)
+        assert views.submit_link_to_cinder.s.call_count == 0

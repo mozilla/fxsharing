@@ -244,3 +244,9 @@ CINDER_URL = env("CINDER_URL", default="")
 CINDER_API_ENDPOINT = CINDER_URL.rstrip("/") + "/api/v2/workflows/event/"
 CINDER_API_TOKEN = env("CINDER_API_TOKEN", default="")
 CINDER_WEBHOOK_TOKEN = env("CINDER_WEBHOOK_TOKEN", default="")
+CINDER_TASK_RATE_LIMIT = env("CINDER_TASK_RATE_LIMIT", default="100/s")
+CELERY_TASK_ANNOTATIONS = {
+    "fxsharing.shares.tasks.submit_link_to_cinder": {
+        "rate_limit": CINDER_TASK_RATE_LIMIT,
+    },
+}
