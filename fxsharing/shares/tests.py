@@ -1017,3 +1017,69 @@ class TestTsWebhook(TestCase):
         sibling_share.refresh_from_db()
         assert self.share.status == ShareStatus.BLOCKED
         assert sibling_share.status == ShareStatus.ACTIVE
+
+    def test_malformed_decision_payload_returns_400(self):
+        # Missing required `enforcement_actions` — schema rejects.
+        payload = {
+            "event": "decision.created",
+            "payload": {
+                "entity": {
+                    "entity_schema": "fxsharing_url",
+                    "attributes": {"id": str(self.link.id)},
+                },
+            },
+        }
+        response = self._signed_post(payload)
+        assert response.status_code == 400
+        assert response.json()["fxsharing"]["handled"] is False
+        self.share.refresh_from_db()
+        assert self.share.status == ShareStatus.ACTIVE
+
+
+@override_settings(
+    CINDER_URL="https://cinder.example.test",
+    CINDER_API_TOKEN="t",  # noqa: S106
+    CINDER_API_ENDPOINT="https://cinder.example.test/api/v2/workflows/event/",
+)
+class TestReportLinkSharingQuality(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6cinder")
+
+    def test_outbound_payloads_validate_against_schema(self):
+        from unittest.mock import patch
+
+        from jsonschema import validate
+
+        from fxsharing.shares.cinder_schema import workflow_event_schema
+        from fxsharing.shares.views import report_link_sharing_quality
+
+        share = Share.objects.create(title="t", user=self.user, type="tabs")
+        Link.objects.create(share=share, url="https://a.example", title="A")
+        Link.objects.create(share=share, url="https://b.example", title="B")
+
+        with patch("fxsharing.shares.views.requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.raise_for_status = lambda: None
+            report_link_sharing_quality(share)
+
+        assert mock_post.call_count == 2
+        for call in mock_post.call_args_list:
+            payload = call.kwargs["json"]
+            # Raises if the constructed payload drifts from the schema.
+            validate(payload, workflow_event_schema)
+            assert payload["event_name"] == "link_sharing_quality"
+            assert payload["entity"]["entity_schema"] == "fxsharing_url"
+
+    def test_no_outbound_calls_when_cinder_url_unset(self):
+        from unittest.mock import patch
+
+        from fxsharing.shares.views import report_link_sharing_quality
+
+        share = Share.objects.create(title="t", user=self.user, type="tabs")
+        Link.objects.create(share=share, url="https://a.example")
+
+        with override_settings(CINDER_URL=""):
+            with patch("fxsharing.shares.views.requests.post") as mock_post:
+                report_link_sharing_quality(share)
+        assert mock_post.call_count == 0

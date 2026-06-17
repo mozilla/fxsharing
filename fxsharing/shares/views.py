@@ -21,6 +21,7 @@ import requests
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 
+from .cinder_schema import decision_created_schema
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
 from .tasks import check_link_safety, fetch_link_preview
@@ -368,6 +369,13 @@ def ts_webhook(request):
     try:
         match event:
             case "decision.created":
+                try:
+                    validate(data, decision_created_schema)
+                except ValidationError as exc:
+                    raise CinderWebhookError(
+                        f"decision.created payload invalid: {exc.message}"
+                    ) from exc
+
                 log.info("Valid payload from fxsharing queue: %s", payload)
 
                 entity = payload.get("entity") or {}
