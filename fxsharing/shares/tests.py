@@ -2,9 +2,10 @@ import hashlib
 import hmac
 import importlib
 import json
+import socket
 from datetime import timedelta
 from io import StringIO
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -13,10 +14,16 @@ from django.contrib.messages import get_messages
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.http import Http404, HttpResponse
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import (
+    RequestFactory,
+    SimpleTestCase,
+    TestCase,
+    override_settings,
+)
 from django.urls import clear_url_caches, reverse
 from django.utils import timezone
 
+import requests
 from allauth.account.signals import user_logged_in, user_logged_out
 from celery import shared_task
 
@@ -28,7 +35,13 @@ from fxsharing.shares.models import (
     Share,
     ShareStatus,
 )
-from fxsharing.shares.tasks import BaseTaskWithRetry
+from fxsharing.shares.tasks import BaseTaskWithRetry, fetch_link_preview
+from fxsharing.shares.url_safety import (
+    UnsafeURLError,
+    _ip_is_public,
+    _resolve_and_validate,
+    safe_get,
+)
 from fxsharing.shares.views import dev_login, page_not_found, server_error
 
 User = get_user_model()
@@ -1150,3 +1163,168 @@ class TestCheckLinkSharingQuality(TestCase):
             Link.objects.create(share=share, url="https://a.example")
             views.check_link_sharing_quality(share)
         assert views.submit_link_to_cinder.s.call_count == 0
+
+
+def _fake_getaddrinfo(host_to_ip):
+    """Build a socket.getaddrinfo replacement mapping hostname -> IP string.
+
+    Returns getaddrinfo-shaped tuples (family, type, proto, canonname,
+    sockaddr) so url_safety reads the IP from ``info[4][0]``. Raises
+    ``socket.gaierror`` for unknown hosts, like real resolution would.
+    """
+
+    def _resolver(host, port, *args, **kwargs):
+        if host not in host_to_ip:
+            raise socket.gaierror(f"unknown host {host!r}")
+        ip = host_to_ip[host]
+        family = socket.AF_INET6 if ":" in ip else socket.AF_INET
+        return [(family, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (ip, port or 0))]
+
+    return _resolver
+
+
+class TestURLSafetyClassifier(SimpleTestCase):
+    """Unit tests for the IP/scheme classification, no network or DB."""
+
+    def test_public_ips_allowed(self):
+        for ip in ("8.8.8.8", "1.1.1.1", "93.184.216.34"):
+            assert _ip_is_public(ip) is True, ip
+
+    def test_internal_ips_blocked(self):
+        # loopback, RFC1918, link-local/metadata, CGNAT, unspecified, IPv6 loopback
+        for ip in (
+            "127.0.0.1",
+            "10.0.0.5",
+            "172.16.0.1",
+            "192.168.1.1",
+            "169.254.169.254",
+            "100.64.0.1",
+            "0.0.0.0",  # noqa: S104
+            "::1",
+        ):
+            assert _ip_is_public(ip) is False, ip
+
+    def test_ipv4_mapped_ipv6_is_unwrapped(self):
+        # ::ffff:169.254.169.254 must be judged by its embedded IPv4 address
+        assert _ip_is_public("::ffff:169.254.169.254") is False
+
+    def test_disallowed_schemes_rejected(self):
+        for url in ("file:///etc/passwd", "gopher://x/", "ftp://host/f"):
+            with self.assertRaises(UnsafeURLError):
+                _resolve_and_validate(url)
+
+    def test_url_without_host_rejected(self):
+        with self.assertRaises(UnsafeURLError):
+            _resolve_and_validate("http:///nohost")
+
+    def test_dns_failure_rejected(self):
+        with patch(
+            "fxsharing.shares.url_safety.socket.getaddrinfo",
+            side_effect=socket.gaierror("nope"),
+        ):
+            with self.assertRaises(UnsafeURLError):
+                _resolve_and_validate("https://does-not-resolve.example")
+
+    def test_host_resolving_to_internal_rejected(self):
+        with patch(
+            "fxsharing.shares.url_safety.socket.getaddrinfo",
+            _fake_getaddrinfo({"evil.example": "169.254.169.254"}),
+        ):
+            with self.assertRaises(UnsafeURLError):
+                _resolve_and_validate("https://evil.example/latest/meta-data/")
+
+
+class TestSafeGet(SimpleTestCase):
+    """Unit tests for safe_get's request + redirect-revalidation behaviour."""
+
+    def _response(self, *, is_redirect, location=None):
+        resp = MagicMock()
+        resp.is_redirect = is_redirect
+        resp.headers = {"Location": location} if location else {}
+        return resp
+
+    def test_allows_public_host_and_disables_auto_redirects(self):
+        with (
+            patch(
+                "fxsharing.shares.url_safety.socket.getaddrinfo",
+                _fake_getaddrinfo({"good.example": "93.184.216.34"}),
+            ),
+            patch(
+                "fxsharing.shares.url_safety.requests.get",
+                return_value=self._response(is_redirect=False),
+            ) as mock_get,
+        ):
+            resp = safe_get("https://good.example/page", timeout=5)
+
+        assert resp.is_redirect is False
+        # We must follow redirects manually so every hop is re-validated.
+        _, kwargs = mock_get.call_args
+        assert kwargs["allow_redirects"] is False
+
+    def test_redirect_to_internal_host_is_blocked(self):
+        # good.example (public) 302-redirects to the cloud metadata host;
+        # the second hop must be re-validated and rejected.
+        mock_get = MagicMock(
+            return_value=self._response(
+                is_redirect=True, location="http://metadata.evil/latest/"
+            )
+        )
+        with (
+            patch(
+                "fxsharing.shares.url_safety.socket.getaddrinfo",
+                _fake_getaddrinfo(
+                    {
+                        "good.example": "93.184.216.34",
+                        "metadata.evil": "169.254.169.254",
+                    }
+                ),
+            ),
+            patch("fxsharing.shares.url_safety.requests.get", mock_get),
+        ):
+            with self.assertRaises(UnsafeURLError):
+                safe_get("https://good.example/redirect")
+
+    def test_too_many_redirects(self):
+        # A public host that redirects forever should hit the cap, not loop.
+        mock_get = MagicMock(
+            return_value=self._response(
+                is_redirect=True, location="https://loop.example/next"
+            )
+        )
+        with (
+            patch(
+                "fxsharing.shares.url_safety.socket.getaddrinfo",
+                _fake_getaddrinfo({"loop.example": "93.184.216.34"}),
+            ),
+            patch("fxsharing.shares.url_safety.requests.get", mock_get),
+        ):
+            with self.assertRaises(requests.exceptions.TooManyRedirects):
+                safe_get("https://loop.example/start", max_redirects=3)
+        assert mock_get.call_count == 4  # initial + 3 redirects
+
+
+class TestFetchLinkPreviewSSRF(TestCase):
+    """fetch_link_preview must refuse SSRF targets without retrying."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="ssrf-fetch-preview")
+
+    def test_internal_url_marked_unsafe_and_not_fetched(self):
+        share = Share.objects.create(title="Test", user=self.user)
+        link = Link.objects.create(share=share, url="https://evil.example/")
+
+        with (
+            patch(
+                "fxsharing.shares.url_safety.socket.getaddrinfo",
+                _fake_getaddrinfo({"evil.example": "169.254.169.254"}),
+            ),
+            patch("fxsharing.shares.url_safety.requests.get") as mock_get,
+        ):
+            fetch_link_preview(link.id)
+
+        # No HTTP request should ever have been issued to the internal target.
+        mock_get.assert_not_called()
+        link.refresh_from_db()
+        assert link.safety_status == SafetyStatus.UNSAFE
+        assert link.preview_title == ""
