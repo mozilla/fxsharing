@@ -35,7 +35,11 @@ from fxsharing.shares.models import (
     Share,
     ShareStatus,
 )
-from fxsharing.shares.tasks import BaseTaskWithRetry, fetch_link_preview
+from fxsharing.shares.tasks import (
+    BaseTaskWithRetry,
+    fetch_link_preview,
+    purge_cdn_cache,
+)
 from fxsharing.shares.url_safety import (
     UnsafeURLError,
     _ip_is_public,
@@ -481,6 +485,22 @@ class TestViewShare(TestCase):
             HTTP_USER_AGENT="Mozilla/5.0 Gecko/20100101 Firefox/109.0",
         )
         assert chrome.content == firefox.content
+
+    def test_active_share_is_edge_cacheable(self):
+        share = Share.objects.create(title="Test Share", user=self.user)
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert "max-age=" in response["Surrogate-Control"]
+        assert response["Surrogate-Key"] == share.shortcode
+        assert "no-cache" in response["Cache-Control"]
+        assert "User-Agent" in response["Vary"]
+
+    def test_blocked_share_is_not_edge_cached(self):
+        share = Share.objects.create(
+            title="Share", user=self.user, status=ShareStatus.BLOCKED
+        )
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        assert "Surrogate-Control" not in response
+        assert "no-store" in response["Cache-Control"]
 
 
 class TestReportShare(TestCase):
@@ -1409,6 +1429,13 @@ class TestTsWebhook(TestCase):
         assert response.status_code == 200
         assert response.json()["fxsharing"]["handled"] is False
 
+    def test_high_risk_url_block_purges_cdn_cache(self):
+        payload = self._decision_payload(self.link, ["link-collections-high-risk-url"])
+        with patch("fxsharing.shares.views.purge_cdn_cache") as mock_purge:
+            response = self._signed_post(payload)
+        assert response.status_code == 201
+        mock_purge.delay_on_commit.assert_called_once_with([self.share.shortcode])
+
 
 @override_settings(
     CINDER_URL="https://cinder.example.test",
@@ -1723,3 +1750,38 @@ class TestFetchLinkPreviewSSRF(TestCase):
         link.refresh_from_db()
         assert link.safety_status == SafetyStatus.UNSAFE
         assert link.preview_title == ""
+
+
+class TestPurgeCdnCache(TestCase):
+    @override_settings(FASTLY_PURGE_ENABLED=False)
+    def test_noop_when_disabled(self):
+        with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+            purge_cdn_cache.run(["abc123"])
+        mock_post.assert_not_called()
+
+    @override_settings(
+        FASTLY_PURGE_ENABLED=True, FASTLY_API_TOKEN="", FASTLY_SERVICE_ID=""
+    )
+    def test_noop_when_credentials_missing(self):
+        with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+            purge_cdn_cache.run(["abc123"])
+        mock_post.assert_not_called()
+
+    @override_settings(
+        FASTLY_PURGE_ENABLED=True,
+        FASTLY_API_TOKEN="secret-token",  # noqa: S106
+        FASTLY_SERVICE_ID="svc123",
+        FASTLY_API_URL="https://api.fastly.com",
+    )
+    def test_posts_purge_per_shortcode(self):
+        with patch("fxsharing.shares.tasks.requests.post") as mock_post:
+            purge_cdn_cache.run(["abc123", "def456"])
+
+        assert mock_post.call_count == 2
+        urls = [call.args[0] for call in mock_post.call_args_list]
+        assert "https://api.fastly.com/service/svc123/purge/abc123" in urls
+        assert "https://api.fastly.com/service/svc123/purge/def456" in urls
+        assert mock_post.call_args_list[0].kwargs["headers"]["Fastly-Key"] == (
+            "secret-token"
+        )
+        mock_post.return_value.raise_for_status.assert_called()

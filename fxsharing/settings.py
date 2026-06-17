@@ -245,6 +245,14 @@ STORAGES = {
     },
 }
 
+# Fastly surrogate-key purge: evicts a share page from the edge the moment it's
+# blocked, so a takedown is immediate rather than waiting for the TTL. No-op
+# until credentials are set, so local/dev do nothing.
+FASTLY_PURGE_ENABLED = env.bool("FASTLY_PURGE_ENABLED", default=False)
+FASTLY_API_URL = env("FASTLY_API_URL", default="https://api.fastly.com")
+FASTLY_API_TOKEN = env("FASTLY_API_TOKEN", default="")
+FASTLY_SERVICE_ID = env("FASTLY_SERVICE_ID", default="")
+
 # Sentry error reporting
 SENTRY_DSN = env("SENTRY_DSN", default="")
 if SENTRY_DSN:

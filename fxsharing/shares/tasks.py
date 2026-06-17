@@ -378,3 +378,34 @@ def submit_share_to_cinder(share_id, reason):
         timeout=10,
     )
     response.raise_for_status()
+
+
+@shared_task(
+    base=BaseTaskWithRetry,
+    autoretry_for=(requests.exceptions.RequestException,),
+)
+def purge_cdn_cache(shortcodes):
+    """Purge share pages from Fastly by surrogate key so a takedown is immediate.
+
+    Each shortcode is the ``Surrogate-Key`` set on its share page. No-op unless
+    ``FASTLY_PURGE_ENABLED`` and credentials are configured, so local/dev do
+    nothing.
+    """
+    if not settings.FASTLY_PURGE_ENABLED:
+        return
+
+    if not (settings.FASTLY_API_TOKEN and settings.FASTLY_SERVICE_ID):
+        logger.warning("Fastly purge enabled but token/service id missing; skipping")
+        return
+
+    headers = {
+        "Fastly-Key": settings.FASTLY_API_TOKEN,
+        "Accept": "application/json",
+    }
+    base = f"{settings.FASTLY_API_URL.rstrip('/')}/service/{settings.FASTLY_SERVICE_ID}"
+    for shortcode in shortcodes:
+        response = requests.post(
+            f"{base}/purge/{shortcode}", headers=headers, timeout=10
+        )
+        response.raise_for_status()
+        logger.info("purged CDN cache for shortcode=%s", shortcode)
