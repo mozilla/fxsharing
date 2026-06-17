@@ -236,7 +236,72 @@ def fetch_link_preview(link_id):
     logger.info("stored preview for %s: title=%r", link.url, title)
 
 
-@shared_task(base=BaseTaskWithRetry)
-def check_link_safety(link_id):
-    # Stub: Web Risk API integration would go here
-    pass
+def build_cinder_workflow_event(link, share):
+    return {
+        "event_name": "link_sharing_quality",
+        "entity": {
+            "entity_schema": "fxsharing_url",
+            "attributes": {
+                "id": str(link.id),
+                "url": link.url,
+                "title": link.title,
+                "metadata": {
+                    "shared_page_id": str(share.id),
+                    "submitted_at": share.created_at.isoformat(),
+                    "context": "URL submitted as part of a link collection.",
+                },
+            },
+        },
+        "subgraph": {
+            "entities": [
+                {
+                    "entity_schema": "fxsharing",
+                    "attributes": {
+                        "id": str(share.id),
+                        "shortcode": share.shortcode,
+                        "title": share.title,
+                        "reason": "User-generated link collection.",
+                    },
+                }
+            ],
+            "relationships": [
+                {
+                    "source_entity_schema": "fxsharing",
+                    "source_id": str(share.id),
+                    "target_entity_schema": "fxsharing_url",
+                    "target_id": str(link.id),
+                    "relationship_schema": "fxsharing_share",
+                }
+            ],
+        },
+    }
+
+
+@shared_task(
+    base=BaseTaskWithRetry,
+    autoretry_for=(requests.exceptions.RequestException,),
+)
+def submit_link_to_cinder(link_id):
+    from .models import Link
+
+    if not settings.CINDER_URL:
+        logger.error("submit_link_to_cinder: CINDER_URL not set!")
+        return
+    if not settings.CINDER_API_TOKEN:
+        logger.error("submit_link_to_cinder: CINDER_API_TOKEN not set!")
+        return
+
+    try:
+        link = Link.objects.select_related("share").get(id=link_id)
+    except Link.DoesNotExist:
+        logger.warning("submit_link_to_cinder: link %s does not exist", link_id)
+        return
+
+    payload = build_cinder_workflow_event(link, link.share)
+    response = requests.post(
+        settings.CINDER_API_ENDPOINT,
+        json=payload,
+        headers={"Authorization": f"Bearer {settings.CINDER_API_TOKEN}"},
+        timeout=10,
+    )
+    response.raise_for_status()

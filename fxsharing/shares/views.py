@@ -17,14 +17,14 @@ from django.utils.encoding import force_bytes
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-import requests
+from celery import group
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 
 from .cinder_schema import decision_created_schema
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
-from .tasks import check_link_safety, fetch_link_preview
+from .tasks import fetch_link_preview, submit_link_to_cinder
 
 log = logging.getLogger(__name__)
 
@@ -118,14 +118,19 @@ def create_share_from_data(data, user, parent_share=None):
     created_links = Link.objects.bulk_create(links)
     for link in created_links:
         fetch_link_preview.delay_on_commit(str(link.id))
-        check_link_safety.delay_on_commit(str(link.id))
 
     return share
 
 
-def check_link_sharing_quality(share):
-    """Individually submit each URL in a share for safety check."""
+def _all_link_ids(share):
+    """Yield link id strings for ``share`` and every nested share (depth-first)."""
+    for link_id in share.links.values_list("id", flat=True):
+        yield str(link_id)
+    for nested in share.nested_shares.all():
+        yield from _all_link_ids(nested)
 
+
+def check_link_sharing_quality(share):
     # TODO: is this unnecessary? can we verify the env at the k8s level?
     if not settings.CINDER_URL:
         log.error("CINDER_URL is not set!")
@@ -137,64 +142,12 @@ def check_link_sharing_quality(share):
         log.error("CINDER_API_ENDPOINT is not set!")
         return
 
-    token = settings.CINDER_API_TOKEN
-    endpoint = settings.CINDER_API_ENDPOINT
-    submitted_at = share.created_at.isoformat()
-    share_entity = {
-        "entity_schema": "fxsharing",
-        "attributes": {
-            "id": str(share.id),
-            "shortcode": share.shortcode,
-            "title": share.title,
-            "reason": "User-generated link collection.",
-        },
-    }
+    link_ids = list(_all_link_ids(share))
+    if not link_ids:
+        return
 
-    for position, link in enumerate(share.links.all()):
-        payload = {
-            "event_name": "link_sharing_quality",
-            "entity": {
-                "entity_schema": "fxsharing_url",
-                "attributes": {
-                    "id": str(link.id),
-                    "url": link.url,
-                    "title": link.title,
-                    "metadata": {
-                        "shared_page_id": str(share.id),
-                        "position": position,
-                        "submitted_at": submitted_at,
-                        "context": "Link contained in user-generated link collection",
-                    },
-                },
-            },
-            "subgraph": {
-                "entities": [share_entity],
-                "relationships": [
-                    {
-                        "source_entity_schema": "fxsharing",
-                        "source_id": str(share.id),
-                        "target_entity_schema": "fxsharing_url",
-                        "target_id": str(link.id),
-                        "relationship_schema": "fxsharing_share",
-                    }
-                ],
-            },
-        }
-
-        try:
-            response = requests.post(
-                endpoint,
-                json=payload,
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=10,
-            )
-            response.raise_for_status()
-        except requests.RequestException:
-            log.exception(
-                "Cinder submission failed for link %s in share %s",
-                link.id,
-                share.id,
-            )
+    signatures = [submit_link_to_cinder.s(link_id) for link_id in link_ids]
+    transaction.on_commit(lambda: group(signatures).apply_async())
 
 
 @require_POST
@@ -412,17 +365,22 @@ def ts_webhook(request):
                         status=200,
                     )
 
-                # We block the share if it contains any high risk URL.
+                # We block the share if it contains any high risk URL; in the
+                # case of nested shares, we block all the parent shares too.
                 # We don't currently do anything with medium/low risk URLs.
-                share = link.share
                 enforcement_actions = payload.get("enforcement_actions") or []
                 if "link-collections-high-risk-url" in enforcement_actions:
-                    Share.objects.filter(pk=share.pk).update(
+                    share_ids = []
+                    share = link.share
+                    while share is not None:
+                        share_ids.append(share.pk)
+                        share = share.parent_share
+                    Share.objects.filter(pk__in=share_ids).update(
                         status=ShareStatus.BLOCKED,
                     )
                     log.info(
-                        "Blocked share %s due to high-risk URL %s",
-                        share.pk,
+                        "Blocked possibly nested shares %s due to high-risk URL %s",
+                        share_ids,
                         link.id,
                     )
 
