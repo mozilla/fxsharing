@@ -95,6 +95,7 @@ The `/__lbheartbeat__`, `/__heartbeat__`, and `/__version__` endpoints are provi
 - `POST /api/v1/create` — create a share (requires authentication; JSON body, see `share_schema.py` for schema)
 - `GET /<shortcode>` — view share page
 - `POST /report/<shortcode>` — report a share (form POST, `reason` field required; valid values: `copyright`, `harmful`, `spam`, `other`)
+- `POST /api/v1/ts_response` — Cinder `decision.created` webhook receiver (HMAC-signed via `CINDER_WEBHOOK_TOKEN`, see `cinder_schema.py` for the expected payload shape)
 
 To test authenticated endpoints locally, log in first via the dummy FxA provider at `http://localhost:8000/accounts/dummy/login/`.
 
@@ -129,6 +130,58 @@ every user (including banned and soft-deleted ones) and lets you log in as any o
 them with one click — no real FxA OAuth required — so you can manually QA
 authenticated flows as a specific seed user. The same page has a log-out button.
 This route does not exist when `DEBUG=False`.
+
+### Local Cinder mock
+
+The app's content-safety integration POSTs each shared URL to
+[Cinder](https://www.cinder.ai/)'s `link_sharing_quality` workflow and listens
+for the resulting `decision.created` webhook on `/api/v1/ts_response`. For
+local development, `scripts/mock_cinder.py` stands in for the real Cinder
+service: it accepts the workflow event POSTs and fires signed `decision.created`
+webhook callbacks back at the app.
+
+Start the mock in its own terminal:
+
+```bash
+make mock-cinder
+```
+
+The mock listens on `http://localhost:8081`. Point the app at it by setting
+the following in `.env` and restarting the dev server (or the `app` container):
+
+```
+CINDER_URL=http://localhost:8081
+CINDER_WEBHOOK_TOKEN=any-string-you-like
+```
+
+The mock signs its callbacks using `CINDER_WEBHOOK_TOKEN`, so the same value
+must be in the environment where the mock runs (it inherits from `.env` via
+`uv run`). If the secrets don't match, `ts_webhook` rejects the callback as
+an invalid signature.
+
+The mock decides which Cinder branch to simulate from the submitted URL:
+
+- contains `malware`, `phishing`, or `unwanted` → Web Risk threat → share is
+  marked `BLOCKED` (whole lineage).
+- contains `csam` or `ncmec` → NCMEC hash match → share is marked `BLOCKED`.
+- anything else → approve, share stays `ACTIVE`.
+
+`http://malware.testing.google.test/testing/malware/` is Google's canonical
+Web Risk test URL and is convenient for exercising the high-risk path.
+
+Useful flags:
+
+- `--delay <seconds>` — wait this long before firing the webhook (default
+  `0.5`, simulates Cinder latency). Pass `0` to fire before `create_share`
+  even responds to the browser.
+- `--webhook-url <url>` — override the receiver URL when the app isn't on
+  `http://127.0.0.1:8000`.
+
+Both directions are JSON-Schema validated against
+`fxsharing/shares/cinder_schema.py`: the mock rejects malformed workflow events
+with 400, and `ts_webhook` rejects malformed `decision.created` payloads the
+same way. The mock implements only the standard signed `decision.created`
+webhook; Cinder's optional unsigned observability webhook isn't simulated.
 
 ### Running tests
 
