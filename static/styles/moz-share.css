@@ -87,13 +87,14 @@ moz-message-bar {
 }
 
 .fx-banner {
-  position: fixed;
-  inset-inline: var(--space-medium);
+  position: sticky;
   bottom: var(--space-large);
+  margin-block: auto var(--space-large);
   margin-inline: auto;
+  width: 100%;
   min-width: 320px;
   max-width: 600px;
-  z-index: 3;
+  z-index: 1;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -138,7 +139,6 @@ moz-message-bar {
 
 @media (min-width: 500px) {
   .fx-banner {
-    /* width: max-content; */
     padding-inline: 0 var(--space-xxlarge);
     gap: var(--space-xxlarge);
   }

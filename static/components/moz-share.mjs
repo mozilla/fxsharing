@@ -392,6 +392,10 @@ class MozShare extends MozLitElement {
       font-weight: var(--font-weight-semibold);
     }
 
+    :host(:not(.is-firefox)) .share-footer {
+      margin-block-start: 0;
+    }
+
     @media (min-width: 516px) {
       .share-footer {
         flex-direction: row;
@@ -433,6 +437,10 @@ class MozShare extends MozLitElement {
   connectedCallback() {
     super.connectedCallback();
     this.init();
+    this.classList.toggle(
+      "is-firefox",
+      document.documentElement.classList.contains("is-firefox"),
+    );
     this._copyBtn = document.getElementById("copy-button");
     if (this._copyBtn) {
       this._onCopyClick = () => this.copyLink();
@@ -572,6 +580,8 @@ class MozShare extends MozLitElement {
               (link) => html`<moz-link .link=${link}></moz-link>`,
             )}
           </div>
+
+          <slot name="promo"></slot>
 
           <footer class="share-footer">
             <div class="disclaimer">
