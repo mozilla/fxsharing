@@ -940,3 +940,11 @@ xul|*.addons-icon {
 .back-button:-moz-locale-dir(rtl), .back-button:dir(rtl) {
   transform: scaleX(-1);
 }
+
+:root:not(.is-firefox) .fx-only {
+  display: none;
+}
+
+:root.is-firefox .not-fx {
+  display: none;
+}

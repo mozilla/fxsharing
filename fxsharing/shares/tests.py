@@ -461,23 +461,26 @@ class TestViewShare(TestCase):
         response = self.client.get(reverse("view_share", args=[share.shortcode]))
         assert response.status_code == 200
 
-    def test_non_firefox_ua_shows_download_banner(self):
+    def test_download_banner_always_rendered(self):
         share = Share.objects.create(title="Test Share", user=self.user)
         response = self.client.get(
             reverse("view_share", args=[share.shortcode]),
             HTTP_USER_AGENT="Chrome/109.0",
         )
-        assert response.context["is_firefox"] is False
         assert b"Created with Firefox" in response.content
+        assert b'class="fx-banner not-fx"' in response.content
 
-    def test_firefox_ua_hides_download_banner(self):
+    def test_download_banner_markup_is_user_agent_independent(self):
         share = Share.objects.create(title="Test Share", user=self.user)
-        response = self.client.get(
+        chrome = self.client.get(
+            reverse("view_share", args=[share.shortcode]),
+            HTTP_USER_AGENT="Chrome/109.0",
+        )
+        firefox = self.client.get(
             reverse("view_share", args=[share.shortcode]),
             HTTP_USER_AGENT="Mozilla/5.0 Gecko/20100101 Firefox/109.0",
         )
-        assert response.context["is_firefox"] is True
-        assert b"Created with Firefox" not in response.content
+        assert chrome.content == firefox.content
 
 
 class TestReportShare(TestCase):
@@ -750,30 +753,21 @@ class TestLandingView(TestCase):
         response = self.client.get(reverse("landing"))
         assert response.status_code == 200
 
-    def test_non_firefox_ua_shows_cta(self):
-        response = self.client.get(
+    def test_renders_both_cta_variants(self):
+        response = self.client.get(reverse("landing"))
+        assert b'class="cta-button fx-only"' in response.content
+        assert b'class="cta-button not-fx"' in response.content
+
+    def test_cta_markup_is_user_agent_independent(self):
+        chrome = self.client.get(
             reverse("landing"),
             HTTP_USER_AGENT="Chrome/109.0",
         )
-        assert response.context["is_firefox"] is False
-
-    def test_firefox_ua_hides_cta(self):
-        response = self.client.get(
+        firefox = self.client.get(
             reverse("landing"),
             HTTP_USER_AGENT="Mozilla/5.0 Gecko/20100101 Firefox/109.0",
         )
-        assert response.context["is_firefox"] is True
-
-    def test_firefox_ios_ua_hides_cta(self):
-        response = self.client.get(
-            reverse("landing"),
-            HTTP_USER_AGENT="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/136.0 Mobile/15E148 Safari/604.1",
-        )
-        assert response.context["is_firefox"] is True
-
-    def test_missing_ua_shows_cta(self):
-        response = self.client.get(reverse("landing"))
-        assert response.context["is_firefox"] is False
+        assert chrome.content == firefox.content
 
 
 class TestDockerflowEndpoints(TestCase):
