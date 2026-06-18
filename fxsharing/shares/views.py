@@ -13,6 +13,11 @@ from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonRespo
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.cache import (
+    add_never_cache_headers,
+    patch_cache_control,
+    patch_vary_headers,
+)
 from django.utils.encoding import force_bytes
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -32,7 +37,12 @@ from .cinder_policies import (
 from .cinder_schema import decision_created_schema
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
-from .tasks import fetch_link_preview, submit_link_to_cinder, submit_share_to_cinder
+from .tasks import (
+    fetch_link_preview,
+    purge_cdn_cache,
+    submit_link_to_cinder,
+    submit_share_to_cinder,
+)
 
 log = logging.getLogger(__name__)
 
@@ -49,11 +59,18 @@ class CinderWebhookIgnoredError(CinderWebhookError):
     reportable = False
 
 
+# Edge TTL for an active share page. A block is evicted immediately by
+# purge_cdn_cache; this TTL only bounds how long an expired share lingers.
+SHARE_EDGE_MAX_AGE = 3600
+
+
 def view_share(request, shortcode):
     share = get_object_or_404(Share, shortcode=shortcode)
 
     if share.is_expired or share.status == ShareStatus.BLOCKED:
-        return render(request, "shares/view_expired.html", status=410)
+        response = render(request, "shares/view_expired.html", status=410)
+        add_never_cache_headers(response)
+        return response
 
     share_data = share.to_dict()
     link_count = 0
@@ -67,7 +84,7 @@ def view_share(request, shortcode):
                 link_count += 1
 
     metrics.share_viewed.add(1)
-    return render(
+    response = render(
         request,
         "shares/view_share.html",
         {
@@ -76,6 +93,13 @@ def view_share(request, shortcode):
             "expiry_text": share.expiry_text,
         },
     )
+    # Edge-cache and tag with the shortcode so a block can purge it instantly.
+    # Browser revalidates; vary on User-Agent for the Firefox-specific banner.
+    response["Surrogate-Control"] = f"max-age={SHARE_EDGE_MAX_AGE}"
+    response["Surrogate-Key"] = shortcode
+    patch_cache_control(response, no_cache=True, private=True)
+    patch_vary_headers(response, ["User-Agent"])
+    return response
 
 
 SHARE_EXPIRY_DAYS = 7
@@ -310,6 +334,14 @@ def server_error(request):
     return render(request, "shares/500.html", status=500)
 
 
+def block_shares(queryset):
+    """Block the given shares and purge their pages from the CDN edge."""
+    shortcodes = list(queryset.values_list("shortcode", flat=True))
+    queryset.update(status=ShareStatus.BLOCKED)
+    if shortcodes:
+        purge_cdn_cache.delay_on_commit(shortcodes)
+
+
 def _handle_link_decision(link_id, enforcement_actions, payload):
     try:
         link = Link.objects.select_related("share", "share__user").get(id=link_id)
@@ -328,7 +360,7 @@ def _handle_link_decision(link_id, enforcement_actions, payload):
     while share is not None:
         share_ids.append(share.pk)
         share = share.parent_share
-    Share.objects.filter(pk__in=share_ids).update(status=ShareStatus.BLOCKED)
+    block_shares(Share.objects.filter(pk__in=share_ids))
     log.info(
         "Blocked (possibly nested) shares %s due to high-risk URL %s",
         share_ids,
@@ -364,7 +396,7 @@ def _handle_share_decision(share_id, enforcement_actions, payload):
         while cursor is not None:
             share_ids.append(cursor.pk)
             cursor = cursor.parent_share
-        Share.objects.filter(pk__in=share_ids).update(status=ShareStatus.BLOCKED)
+        block_shares(Share.objects.filter(pk__in=share_ids))
         log.info(
             "Blocked (possibly nested) shares %s after human review decision", share_ids
         )
@@ -418,7 +450,7 @@ def _record_badness(user, delta, source_link_id=None, source_share_id=None):
     )
     if user.badness_counter >= BAN_THRESHOLD and not user.is_banned:
         User.objects.filter(pk=user.pk).update(is_banned=True)
-        Share.objects.filter(user=user).update(status=ShareStatus.BLOCKED)
+        block_shares(Share.objects.filter(user=user))
         log.info(
             "User %s banned at badness %d; all shares blocked",
             user.pk,

@@ -233,6 +233,26 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
+# Hashed, immutable static filenames so the CDN can cache them long-term. The
+# manifest is built by `collectstatic` (run in the image build); tests override
+# this to a manifest-free backend (see conftest.py) since they skip collectstatic.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# Fastly surrogate-key purge: evicts a share page from the edge the moment it's
+# blocked, so a takedown is immediate rather than waiting for the TTL. No-op
+# until credentials are set, so local/dev do nothing.
+FASTLY_PURGE_ENABLED = env.bool("FASTLY_PURGE_ENABLED", default=False)
+FASTLY_API_URL = env("FASTLY_API_URL", default="https://api.fastly.com")
+FASTLY_API_TOKEN = env("FASTLY_API_TOKEN", default="")
+FASTLY_SERVICE_ID = env("FASTLY_SERVICE_ID", default="")
+
 # Sentry error reporting
 SENTRY_DSN = env("SENTRY_DSN", default="")
 if SENTRY_DSN:
