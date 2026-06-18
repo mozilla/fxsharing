@@ -1696,7 +1696,9 @@ class TestCinderSignatures(TestCase):
             override_settings(CINDER_URL=""),
             patch.object(tasks, "submit_link_to_cinder", autospec=True),
         ):
-            assert tasks._cinder_signatures(["00000000-0000-0000-0000-000000000000"]) == []
+            assert (
+                tasks._cinder_signatures(["00000000-0000-0000-0000-000000000000"]) == []
+            )
             assert tasks.submit_link_to_cinder.s.call_count == 0
 
 
