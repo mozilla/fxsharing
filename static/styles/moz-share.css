@@ -88,8 +88,8 @@ moz-message-bar {
 
 .fx-banner {
   position: sticky;
-  bottom: var(--space-large);
-  margin-block: auto var(--space-large);
+  bottom: var(--size-item-large);
+  margin-block: auto var(--size-item-large);
   margin-inline: auto;
   width: 100%;
   min-width: 320px;
@@ -102,10 +102,10 @@ moz-message-bar {
   padding-inline: var(--space-medium);
   height: 72px;
   border-radius: var(--border-radius-large);
-  background: linear-gradient(142deg, #fcf5f0 2%, #ffeafe 85%);
+  background: linear-gradient(137deg, #8b37c1 5%, #210340 84%);
   box-shadow: var(--box-shadow-level-4);
   backdrop-filter: blur(30px);
-  color: var(--text-color);
+  color: light-dark(#fbfbfe, #15141a);
 }
 
 .fx-banner-mascot {
@@ -134,10 +134,10 @@ moz-message-bar {
 .fx-banner-subtitle {
   margin: 0;
   font-size: var(--font-size-small);
-  color: var(--text-color-deemphasized);
+  color: light-dark(rgba(251, 251, 254, 0.69), var(--text-color-deemphasized));
 }
 
-@media (min-width: 500px) {
+@media (min-width: 601px) {
   .fx-banner {
     padding-inline: 0 var(--space-xxlarge);
     gap: var(--space-xxlarge);
@@ -149,7 +149,7 @@ moz-message-bar {
 
 @media (prefers-color-scheme: dark) {
   .fx-banner {
-    background: linear-gradient(97deg, #8b37c1 -5%, #210340 85%);
+    background: linear-gradient(142deg, #fcf5f0 2%, #ffeafe 85%);
   }
 }
 
@@ -157,13 +157,13 @@ moz-message-bar {
   flex-shrink: 0;
   align-self: center;
   margin-block-start: 0;
-  --button-background-color-primary: light-dark(#854dff, #bba0ff);
-  --button-background-color-primary-hover: color-mix(in srgb, light-dark(#854dff, #bba0ff) 90%, #000);
-  --button-background-color-primary-active: color-mix(in srgb, light-dark(#854dff, #bba0ff) 80%, #000);
+  --button-background-color-primary: light-dark(#bba0ff, #854dff);
+  --button-background-color-primary-hover: color-mix(in srgb, light-dark(#bba0ff, #854dff) 90%, #000);
+  --button-background-color-primary-active: color-mix(in srgb, light-dark(#bba0ff, #854dff) 80%, #000);
   --button-border-color-primary: transparent;
   --button-border-color-primary-hover: transparent;
   --button-border-color-primary-active: transparent;
-  --button-text-color-primary: light-dark(#fff, #101118);
-  --button-text-color-primary-hover: light-dark(#fff, #101118);
-  --button-text-color-primary-active: light-dark(#fff, #101118);
+  --button-text-color-primary: light-dark(#101118, #fff);
+  --button-text-color-primary-hover: light-dark(#101118, #fff);
+  --button-text-color-primary-active: light-dark(#101118, #fff);
 }
