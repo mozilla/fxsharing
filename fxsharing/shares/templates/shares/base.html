@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Firefox Sharing{% endblock %}</title>
     {% load static %}
+    <link
+      rel="icon"
+      href="{% static 'assets/firefox.ico' %}"
+      type="image/x-icon"
+    />
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
     <link rel="stylesheet" href="{% static 'styles/base.css' %}" />
     {% block extra_css %}{% endblock %}
@@ -12,15 +17,15 @@
 
   <body>
     <header class="site-header">
-      <img class="site-logo" src="{% static 'assets/logo.svg' %}" alt="Firefox" />
-      {% block header %}
-      {% endblock %}
+      <img
+        class="site-logo"
+        src="{% static 'assets/logo.svg' %}"
+        alt="Firefox"
+      />
+      {% block header %} {% endblock %}
     </header>
     {% block main %}
-    <main>
-      {% block content %}{% endblock %}
-    </main>
-    {% endblock %}
-    {% block extra_scripts %}{% endblock %}
+    <main>{% block content %}{% endblock %}</main>
+    {% endblock %} {% block extra_scripts %}{% endblock %}
   </body>
 </html>
