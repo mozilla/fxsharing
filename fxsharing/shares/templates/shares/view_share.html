@@ -2,6 +2,8 @@
 {% load static %}
 
 {% block title %}{{ share.title }}{% endblock %}
+{% block og_title %}{{ share.title }} · Shared from Firefox{% endblock %}
+{% block og_description %}Open a page of {{ link_count }} links created in Firefox, the browser that puts your privacy first.{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'styles/moz-share.css' %}" />
