@@ -80,3 +80,36 @@ decision_created_schema = {
         },
     },
 }
+
+
+share_report_event_schema = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Cinder Share Report Event",
+    "description": (
+        "Payload for POST /api/v2/workflows/event when a user reports an "
+        "fxsharing share for abuse. One event per reported share."
+    ),
+    "type": "object",
+    "version": "1.0.0",
+    "required": ["event_name", "entity"],
+    "properties": {
+        "event_name": {"const": "link_collections_reporting"},
+        "entity": {
+            "type": "object",
+            "required": ["entity_schema", "attributes"],
+            "properties": {
+                "entity_schema": {"const": "fxsharing"},
+                "attributes": {
+                    "type": "object",
+                    "required": ["id", "shortcode", "title", "reason"],
+                    "properties": {
+                        "id": {"type": "string", "minLength": 1},
+                        "shortcode": {"type": "string", "minLength": 1},
+                        "title": {"type": "string"},
+                        "reason": {"type": "string"},
+                    },
+                },
+            },
+        },
+    },
+}
