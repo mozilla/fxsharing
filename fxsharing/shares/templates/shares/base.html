@@ -15,6 +15,22 @@
       href="{% static 'assets/firefox.ico' %}"
       type="image/x-icon"
     />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{ request.build_absolute_uri }}" />
+    <meta
+      property="og:title"
+      content="{% block og_title %}Share a collection of links with Firefox{% endblock %}"
+    />
+    <meta
+      property="og:description"
+      content="{% block og_description %}Create an easy to share page of links you can send to anyone.{% endblock %}"
+    />
+    <meta
+      property="og:image"
+      content="{{ request.scheme }}://{{ request.get_host }}{% static 'assets/preview-background.svg' %}"
+    />
+
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
     <link rel="stylesheet" href="{% static 'styles/base.css' %}" />
     {% block extra_css %}{% endblock %}
