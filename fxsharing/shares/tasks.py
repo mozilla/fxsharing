@@ -1,3 +1,4 @@
+import functools
 import mimetypes
 from urllib.parse import urljoin, urlparse
 
@@ -5,7 +6,7 @@ from django.conf import settings
 
 import requests
 from bs4 import BeautifulSoup
-from celery import shared_task
+from celery import group, shared_task
 from celery.contrib.django.task import DjangoTask
 from celery.utils.log import get_task_logger
 from google.cloud import storage
@@ -27,6 +28,17 @@ CONTENT_TYPE_TO_EXT = {
     "image/x-icon": ".ico",
     "image/vnd.microsoft.icon": ".ico",
 }
+
+
+@functools.cache
+def _get_gcs_client():
+    """Return a process-wide GCS client, created lazily on first use.
+
+    ``storage.Client()`` performs credential discovery and a metadata-server
+    round trip, so we reuse one client per worker process rather than build a
+    new one for every favicon.
+    """
+    return storage.Client()
 
 
 def download_and_store_favicon(favicon_url, link_url, headers):
@@ -73,7 +85,7 @@ def download_and_store_favicon(favicon_url, link_url, headers):
         hostname = urlparse(link_url).hostname
         object_name = f"favicons/{hostname}{ext}"
 
-        client = storage.Client()
+        client = _get_gcs_client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(object_name)
 
@@ -409,3 +421,56 @@ def purge_cdn_cache(shortcodes):
         )
         response.raise_for_status()
         logger.info("purged CDN cache for shortcode=%s", shortcode)
+
+
+def _all_link_ids(share):
+    """Yield link id strings for ``share`` and every nested share (depth-first)."""
+    for link_id in share.links.values_list("id", flat=True):
+        yield str(link_id)
+    for nested in share.nested_shares.all():
+        yield from _all_link_ids(nested)
+
+
+def _cinder_signatures(link_ids):
+    """Return Cinder submission signatures for ``link_ids``.
+
+    Returns an empty list (and logs) when Cinder is not configured, so callers
+    can unconditionally concatenate the result into a larger dispatch group.
+    """
+    for name in ("CINDER_URL", "CINDER_API_TOKEN", "CINDER_API_ENDPOINT"):
+        if not getattr(settings, name):
+            logger.error("%s is not set!", name)
+            return []
+
+    return [submit_link_to_cinder.s(link_id) for link_id in link_ids]
+
+
+@shared_task(base=BaseTaskWithRetry)
+def process_new_share(share_id):
+    """Fan out preview + safety processing for a newly created share.
+
+    Enqueued once per create-share request (after commit), so the web request
+    makes a single broker round trip regardless of how many links the
+    collection holds. The per-link ``fetch_link_preview`` tasks and Cinder
+    submissions are dispatched here, in the worker, as a single ``group`` so
+    the whole fan-out is one broker operation. Building one group rather than a
+    loop of ``.delay()`` calls also means a retry (the task auto-retries on
+    error) replays a single dispatch instead of re-enqueuing previews link by
+    link.
+    """
+    from .models import Share
+
+    try:
+        share = Share.objects.get(id=share_id)
+    except Share.DoesNotExist:
+        logger.warning("process_new_share: share %s does not exist", share_id)
+        return
+
+    link_ids = list(_all_link_ids(share))
+    if not link_ids:
+        return
+
+    signatures = [fetch_link_preview.s(link_id) for link_id in link_ids]
+    signatures += _cinder_signatures(link_ids)
+
+    group(signatures).apply_async()

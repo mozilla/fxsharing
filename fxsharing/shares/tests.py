@@ -216,6 +216,26 @@ class TestCreateShare(TestCase):
         share = Share.objects.get()
         assert share.links.count() == 2
 
+    def test_enqueues_single_dispatch_regardless_of_link_count(self):
+        from fxsharing.shares import views
+
+        payload = {
+            "type": "tabs",
+            "title": "My Links",
+            "links": [
+                {"url": f"https://example.com/{i}", "title": f"Link {i}"}
+                for i in range(10)
+            ],
+        }
+        response = self.client.post(
+            reverse("create_share"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        assert response.status_code == 201
+        share = Share.objects.get()
+        views.process_new_share.delay_on_commit.assert_called_once_with(str(share.id))
+
     def test_duplicate_request_creates_distinct_share(self):
         payload = {
             "type": "tabs",
@@ -1567,38 +1587,117 @@ class TestSubmitShareToCinder(TestCase):
         assert mock_post.call_count == 0
 
 
+class TestProcessNewShare(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6dispatch")
+
+    def test_dispatches_single_group_covering_every_link_including_nested(self):
+        from fxsharing.shares import tasks
+
+        share = Share.objects.create(title="top", user=self.user, type="tabs")
+        Link.objects.create(share=share, url="https://a.example")
+        nested = Share.objects.create(
+            title="nested", user=self.user, type="bookmarks", parent_share=share
+        )
+        Link.objects.create(share=nested, url="https://b.example")
+
+        with (
+            patch.object(tasks, "fetch_link_preview", autospec=True),
+            patch.object(tasks, "group", autospec=True) as mock_group,
+            patch.object(tasks, "_cinder_signatures", autospec=True, return_value=[]),
+        ):
+            tasks.process_new_share(str(share.id))
+
+            enqueued = {
+                call.args[0] for call in tasks.fetch_link_preview.s.call_args_list
+            }
+            mock_group.assert_called_once()
+            mock_group.return_value.apply_async.assert_called_once_with()
+
+        expected = {str(link.id) for link in Link.objects.all()}
+        assert enqueued == expected
+
+    def test_includes_cinder_signatures_in_the_group(self):
+        from fxsharing.shares import tasks
+
+        share = Share.objects.create(title="top", user=self.user, type="tabs")
+        Link.objects.create(share=share, url="https://a.example")
+
+        with (
+            patch.object(tasks, "fetch_link_preview", autospec=True),
+            patch.object(tasks, "group", autospec=True) as mock_group,
+            patch.object(
+                tasks, "_cinder_signatures", autospec=True, return_value=["cinder-sig"]
+            ) as mock_cinder,
+        ):
+            tasks.process_new_share(str(share.id))
+
+            link_ids = [str(link.id) for link in share.links.all()]
+            mock_cinder.assert_called_once_with(link_ids)
+            (signatures,) = mock_group.call_args.args
+            assert "cinder-sig" in signatures
+
+    def test_no_links_dispatches_nothing(self):
+        from fxsharing.shares import tasks
+
+        share = Share.objects.create(title="empty", user=self.user, type="tabs")
+
+        with (
+            patch.object(tasks, "fetch_link_preview", autospec=True),
+            patch.object(tasks, "group", autospec=True) as mock_group,
+            patch.object(tasks, "_cinder_signatures", autospec=True) as mock_cinder,
+        ):
+            tasks.process_new_share(str(share.id))
+            assert mock_group.call_count == 0
+            assert mock_cinder.call_count == 0
+
+    def test_missing_share_is_a_noop(self):
+        from fxsharing.shares import tasks
+
+        with (
+            patch.object(tasks, "fetch_link_preview", autospec=True),
+            patch.object(tasks, "group", autospec=True) as mock_group,
+        ):
+            tasks.process_new_share("00000000-0000-0000-0000-000000000000")
+            assert tasks.fetch_link_preview.s.call_count == 0
+            assert mock_group.call_count == 0
+
+
 @override_settings(
     CINDER_URL="https://cinder.example.test",
     CINDER_API_TOKEN="t",  # noqa: S106
     CINDER_API_ENDPOINT="https://cinder.example.test/api/v2/workflows/event/",
 )
-class TestCheckLinkSharingQuality(TestCase):
+class TestCinderSignatures(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(fxa_id="a1b2c3d4e5f6group")
 
-    def test_enqueues_one_signature_per_link(self):
-        from fxsharing.shares import views
+    def test_one_signature_per_link(self):
+        from fxsharing.shares import tasks
 
         share = Share.objects.create(title="t", user=self.user, type="tabs")
         Link.objects.create(share=share, url="https://a.example")
         Link.objects.create(share=share, url="https://b.example")
-        views.check_link_sharing_quality(share)
+        link_ids = [str(link.id) for link in share.links.all()]
 
-        link_ids = {str(link.id) for link in share.links.all()}
-        called_with = {
-            call.args[0] for call in views.submit_link_to_cinder.s.call_args_list
-        }
-        assert called_with == link_ids
+        with patch.object(tasks, "submit_link_to_cinder", autospec=True):
+            tasks._cinder_signatures(link_ids)
+            called_with = {
+                call.args[0] for call in tasks.submit_link_to_cinder.s.call_args_list
+            }
+        assert called_with == set(link_ids)
 
-    def test_no_enqueue_when_cinder_url_unset(self):
-        from fxsharing.shares import views
+    def test_empty_when_cinder_url_unset(self):
+        from fxsharing.shares import tasks
 
-        with override_settings(CINDER_URL=""):
-            share = Share.objects.create(title="t", user=self.user, type="tabs")
-            Link.objects.create(share=share, url="https://a.example")
-            views.check_link_sharing_quality(share)
-        assert views.submit_link_to_cinder.s.call_count == 0
+        with (
+            override_settings(CINDER_URL=""),
+            patch.object(tasks, "submit_link_to_cinder", autospec=True),
+        ):
+            assert tasks._cinder_signatures(["00000000-0000-0000-0000-000000000000"]) == []
+            assert tasks.submit_link_to_cinder.s.call_count == 0
 
 
 def _fake_getaddrinfo(host_to_ip):
