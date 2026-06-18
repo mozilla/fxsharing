@@ -1,34 +1,44 @@
 import { MozLitElement } from "../dependencies/lit-utils.mjs";
 import { css, html } from "../dependencies/lit.all.mjs";
-import "./moz-button/moz-button.mjs";
 import "./moz-button-group/moz-button-group.mjs";
+import "./moz-button/moz-button.mjs";
 import "./moz-card/moz-card.mjs";
 import "./moz-message-bar/moz-message-bar.mjs";
 import "./moz-radio-group/moz-radio-group.mjs";
 import { recordEvent } from "./telemetry.mjs";
 
-function faviconUrl(link) {
-  if (link.favicon_url) {
-    return link.favicon_url;
-  }
-  try {
-    return new URL(link.url).origin + "/favicon.ico";
-  } catch {
-    return "/static/assets/default-favicon-light.svg";
-  }
-}
+// This is copied from default-favicon-light.svg but replaces the fill with
+// "currentColor". The default favicon is defined as an inline svg so that
+// fill="currentColor" works.
+const DEFAULT_FAVICON = html` <svg
+  class="favicon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="16"
+  height="16"
+  fill="currentColor"
+  viewBox="0 0 16 16"
+>
+  <path
+    d="M8.5 1a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15m2.447 1.75a6.26 6.26 0 0 1 3.756 5.125h-2.229A9.43 9.43 0 0 0 10.54 2.75zm-2.049 0a8.2 8.2 0 0 1 2.321 5.125H5.781A8.2 8.2 0 0 1 8.102 2.75zm-2.846 0h.408a9.43 9.43 0 0 0-1.934 5.125H2.297A6.25 6.25 0 0 1 6.052 2.75m0 11.5a6.25 6.25 0 0 1-3.755-5.125h2.229A9.43 9.43 0 0 0 6.46 14.25zm2.05 0a8.2 8.2 0 0 1-2.321-5.125h5.437a8.2 8.2 0 0 1-2.321 5.125zm2.846 0h-.409a9.4 9.4 0 0 0 1.934-5.125h2.229a6.25 6.25 0 0 1-3.754 5.125"
+  />
+</svg>`;
 
 class MozLink extends MozLitElement {
   static properties = {
     link: { type: Object },
-    faviconError: { type: Boolean, state: true },
   };
 
   static styles = css`
     moz-card {
       --card-padding: 0;
-      --card-background-color: light-dark(rgba(255, 255, 255, 0.4), rgba(21, 20, 26, 0.4));
-      --card-background-color-hover: light-dark(rgba(21, 20, 26, 0.07), rgba(251, 251, 254, 0.07));
+      --card-background-color: light-dark(
+        rgba(255, 255, 255, 0.4),
+        rgba(21, 20, 26, 0.4)
+      );
+      --card-background-color-hover: light-dark(
+        rgba(21, 20, 26, 0.07),
+        rgba(251, 251, 254, 0.07)
+      );
       --card-border-radius: var(--border-radius-medium);
     }
 
@@ -65,6 +75,7 @@ class MozLink extends MozLitElement {
     .favicon {
       border-radius: var(--border-radius-small);
       width: 40px;
+      height: 40px;
     }
 
     .link-text {
@@ -106,13 +117,10 @@ class MozLink extends MozLitElement {
 
       .favicon {
         width: var(--size-item-medium);
+        height: var(--size-item-medium);
       }
     }
   `;
-
-  handleFaviconError() {
-    this.faviconError = true;
-  }
 
   handleLinkClick() {
     recordEvent("link_click", {});
@@ -136,20 +144,9 @@ class MozLink extends MozLitElement {
         >
           <div class="favicon-container">
             <picture>
-              ${this.faviconError
-                ? html`<source
-                    srcset="/static/assets/default-favicon-dark.svg"
-                    media="(prefers-color-scheme: dark)"
-                  />`
-                : ""}
-              <img
-                class="favicon"
-                src=${this.faviconError
-                  ? "/static/assets/default-favicon-light.svg"
-                  : faviconUrl(this.link)}
-                alt=""
-                @error=${this.handleFaviconError}
-              />
+              ${this.link.favicon_url
+                ? html`<img class="favicon" src=${this.link.favicon_url} />`
+                : DEFAULT_FAVICON}
             </picture>
           </div>
           <div class="link-text">
@@ -398,7 +395,7 @@ class MozShare extends MozLitElement {
       }
 
       .footer-links {
-         padding-inline-start: 0;
+        padding-inline-start: 0;
       }
     }
 
