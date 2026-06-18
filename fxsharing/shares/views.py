@@ -98,7 +98,7 @@ def view_share(request, shortcode):
     response["Surrogate-Control"] = f"max-age={SHARE_EDGE_MAX_AGE}"
     response["Surrogate-Key"] = shortcode
     patch_cache_control(response, no_cache=True, private=True)
-    patch_vary_headers(response, ["Cookie", "User-Agent"])
+    patch_vary_headers(response, ["User-Agent"])
     return response
 
 

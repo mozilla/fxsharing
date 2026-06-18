@@ -1291,7 +1291,8 @@ class TestTsWebhook(TestCase):
             ["link-collections-high-risk-url"],
             policy_ids=[POLICY_MINOR_EXPLOITATION_ID],
         )
-        response = self._signed_post(payload)
+        with patch("fxsharing.shares.views.purge_cdn_cache") as mock_purge:
+            response = self._signed_post(payload)
         assert response.status_code == 201
 
         self.user.refresh_from_db()
@@ -1302,6 +1303,13 @@ class TestTsWebhook(TestCase):
         other_share.refresh_from_db()
         assert self.share.status == ShareStatus.BLOCKED
         assert other_share.status == ShareStatus.BLOCKED
+
+        purged = {
+            shortcode
+            for call in mock_purge.delay_on_commit.call_args_list
+            for shortcode in call.args[0]
+        }
+        assert purged == {self.share.shortcode, other_share.shortcode}
 
     def test_repeated_strikes_eventually_ban_user(self):
         # Three separate links, three separate strikes — third one trips the
@@ -1366,7 +1374,8 @@ class TestTsWebhook(TestCase):
             ["link-collections-dont-publish-collection"],
             policy_ids=[POLICY_SPAM_ID],
         )
-        response = self._signed_post(payload)
+        with patch("fxsharing.shares.views.purge_cdn_cache") as mock_purge:
+            response = self._signed_post(payload)
         assert response.status_code == 201
 
         self.share.refresh_from_db()
@@ -1376,6 +1385,11 @@ class TestTsWebhook(TestCase):
 
         self.user.refresh_from_db()
         assert self.user.badness_counter == BADNESS_STRIKE
+
+        mock_purge.delay_on_commit.assert_called_once()
+        assert sorted(mock_purge.delay_on_commit.call_args.args[0]) == sorted(
+            [self.share.shortcode, nested.shortcode]
+        )
 
     def test_share_dont_publish_with_unmapped_policy_blocks_but_no_badness(self):
         # An unknown policy UUID should still block the lineage but should
