@@ -295,7 +295,7 @@ class MozShare extends MozLitElement {
       display: flex;
       flex-direction: column;
       gap: var(--space-medium);
-      margin-block-end: 50px;
+      margin-block-end: var(--size-item-large);
     }
 
     .share-footer {
