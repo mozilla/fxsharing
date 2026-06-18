@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Firefox Sharing{% endblock %}</title>
+    <script>
+      if (/Firefox\/|FxiOS\//.test(navigator.userAgent)) {
+        document.documentElement.classList.add("is-firefox");
+      }
+    </script>
     {% load static %}
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
     <link rel="stylesheet" href="{% static 'styles/base.css' %}" />

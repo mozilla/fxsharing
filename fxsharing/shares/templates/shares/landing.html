@@ -24,12 +24,9 @@
       <div class="callout-copy">
         <h1>Share a collection of links on any browser</h1>
         <p>Create a public page for links from Firefox. Share a folder, tab group, or selected tabs to get started.</p>
-        {% if is_firefox %}
         {% comment %} TODO: add sumo link {% endcomment %}
-          <a class="cta-button">Learn more</a>
-        {% else %}
-          <a class="cta-button" data-event="cta_click" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
-        {% endif %}
+        <a class="cta-button fx-only">Learn more</a>
+        <a class="cta-button not-fx" data-event="cta_click" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
       </div>
     </div>
   </moz-card>

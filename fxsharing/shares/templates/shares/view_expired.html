@@ -13,9 +13,6 @@
 {% endblock %}
 
 {% block cta %}
-  {% if is_firefox %}
-    <a class="cta-button">Create a new link</a>
-  {% else %}
-    <a class="cta-button" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
-  {% endif %}
+  <a class="cta-button fx-only">Create a new link</a>
+  <a class="cta-button not-fx" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
 {% endblock %}
