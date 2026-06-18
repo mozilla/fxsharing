@@ -40,15 +40,17 @@
 
 {% block main %}
   <main class="share-wrapper">
-    <moz-share>{{ share|json_script }}</moz-share>
+    <moz-share>
+      {{ share|json_script }}
+      <aside class="fx-banner not-fx" slot="promo">
+        <img class="fx-banner-mascot" src="{% static 'assets/firefox-mascot.svg' %}" alt="" />
+        <div class="fx-banner-copy">
+          <p class="fx-banner-title">Created with Firefox</p>
+          <p class="fx-banner-subtitle">A more private way to roam the web.</p>
+        </div>
+        <a class="cta-button" data-event="cta_click" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
+      </aside>
+    </moz-share>
     {% for message in messages %}<moz-message-bar type="success" message="{{ message }}" dismissable></moz-message-bar>{% endfor %}
   </main>
-  <aside class="fx-banner not-fx">
-    <img class="fx-banner-mascot" src="{% static 'assets/firefox-mascot.svg' %}" alt="" />
-    <div class="fx-banner-copy">
-      <p class="fx-banner-title">Created with Firefox</p>
-      <p class="fx-banner-subtitle">A more private way to roam the web.</p>
-    </div>
-    <a class="cta-button" data-event="cta_click" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
-  </aside>
 {% endblock %}
