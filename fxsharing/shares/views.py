@@ -22,7 +22,6 @@ from django.utils.encoding import force_bytes
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from celery import group
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 
@@ -37,12 +36,7 @@ from .cinder_policies import (
 from .cinder_schema import decision_created_schema
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
-from .tasks import (
-    fetch_link_preview,
-    purge_cdn_cache,
-    submit_link_to_cinder,
-    submit_share_to_cinder,
-)
+from .tasks import process_new_share, purge_cdn_cache, submit_share_to_cinder
 
 log = logging.getLogger(__name__)
 
@@ -148,39 +142,9 @@ def create_share_from_data(data, user, parent_share=None):
         elif obj.get("links"):
             create_share_from_data(obj, user=user, parent_share=share)
 
-    created_links = Link.objects.bulk_create(links)
-    for link in created_links:
-        fetch_link_preview.delay_on_commit(str(link.id))
+    Link.objects.bulk_create(links)
 
     return share
-
-
-def _all_link_ids(share):
-    """Yield link id strings for ``share`` and every nested share (depth-first)."""
-    for link_id in share.links.values_list("id", flat=True):
-        yield str(link_id)
-    for nested in share.nested_shares.all():
-        yield from _all_link_ids(nested)
-
-
-def check_link_sharing_quality(share):
-    # TODO: is this unnecessary? can we verify the env at the k8s level?
-    if not settings.CINDER_URL:
-        log.error("CINDER_URL is not set!")
-        return
-    if not settings.CINDER_API_TOKEN:
-        log.error("CINDER_API_TOKEN is not set!")
-        return
-    if not settings.CINDER_API_ENDPOINT:
-        log.error("CINDER_API_ENDPOINT is not set!")
-        return
-
-    link_ids = list(_all_link_ids(share))
-    if not link_ids:
-        return
-
-    signatures = [submit_link_to_cinder.s(link_id) for link_id in link_ids]
-    transaction.on_commit(lambda: group(signatures).apply_async())
 
 
 @require_POST
@@ -224,7 +188,7 @@ def create_share(request):
     # Always create a fresh share page so a user can generate a new link
     # from the same tab group each time they share.
     share = create_share_from_data(data=data, user=request.user)
-    check_link_sharing_quality(share)
+    process_new_share.delay_on_commit(str(share.id))
 
     metrics.share_created.add(1, {"outcome": "created"})
     url = request.build_absolute_uri(f"/{share.shortcode}")
