@@ -197,6 +197,10 @@ def create_share(request):
         metrics.share_created.add(1, {"outcome": "unauthenticated"})
         return HttpResponse(status=401)
 
+    if request.user.is_banned:
+        metrics.share_created.add(1, {"outcome": "banned"})
+        return HttpResponse(status=403)
+
     try:
         data = json.loads(request.body)
         validate(instance=data, schema=share_schema)

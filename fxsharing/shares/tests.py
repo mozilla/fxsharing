@@ -661,6 +661,19 @@ class TestProductMetrics(TestCase):
         assert response.status_code == 429
         counter.add.assert_called_once_with(1, {"outcome": "limit_reached"})
 
+    def test_create_increments_with_banned_outcome(self):
+        banned = User.objects.create_user(fxa_id="a1b2c3d4e5f6banned", is_banned=True)
+        self.client.force_login(banned)
+        with patch("fxsharing.shares.metrics.share_created") as counter:
+            response = self.client.post(
+                reverse("create_share"),
+                data=self._payload(),
+                content_type="application/json",
+            )
+        assert response.status_code == 403
+        assert not Share.objects.filter(user=banned).exists()
+        counter.add.assert_called_once_with(1, {"outcome": "banned"})
+
     def test_create_increments_with_unauthenticated_outcome(self):
         with patch("fxsharing.shares.metrics.share_created") as counter:
             response = self.client.post(
