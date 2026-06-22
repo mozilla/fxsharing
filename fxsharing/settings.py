@@ -125,6 +125,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "fxsharing.shares.context_processors.analytics",
             ],
         },
     },
@@ -273,3 +274,5 @@ CELERY_TASK_ANNOTATIONS = {
         "rate_limit": CINDER_TASK_RATE_LIMIT,
     },
 }
+
+GA_MEASUREMENT_ID = env("GA_MEASUREMENT_ID", default="")
