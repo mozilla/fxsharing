@@ -128,27 +128,38 @@ class MozLink extends MozLitElement {
   connectedCallback() {
     super.connectedCallback();
 
-    shouldPollForFavicon = !this.link.favicon_url;
+    const shouldPollForFavicon = !this.link.favicon_url;
 
     if (shouldPollForFavicon) {
       let attempt = 0;
       this.intervalId = setInterval(async () => {
-        if (attempt > MozLink.MAX_POLL_ATTEMPTS) {
-          this.stopPollingFavicon();
-          return;
-        }
-
-        let params = new URLSearchParams({ url: this.link.url }).toString();
-        let response = await fetch(`/get_favicon_url?${params}`);
-
-        let { favicon_url } = await response.json();
-        if (favicon_url) {
-          this.link = { ...this.link, favicon_url };
-          this.stopPollingFavicon();
-        }
-
+        try {
+          this.pollForFavicon();
+        } catch {}
         attempt += 1;
       }, MozLink.POLL_INTERVAL_MS);
+
+      // Immediately poll for the favicon
+      try {
+        this.pollForFavicon();
+      } catch {}
+      attempt += 1;
+    }
+  }
+
+  async pollForFavicon(attempt) {
+    if (attempt > MozLink.MAX_POLL_ATTEMPTS) {
+      this.stopPollingFavicon();
+      return;
+    }
+
+    let params = new URLSearchParams({ url: this.link.url }).toString();
+    let response = await fetch(`/get_favicon_url?${params}`);
+
+    let { favicon_url } = await response.json();
+    if (favicon_url) {
+      this.link = { ...this.link, favicon_url };
+      this.stopPollingFavicon();
     }
   }
 
