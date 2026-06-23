@@ -3,7 +3,7 @@ import hmac
 import json
 import logging
 from datetime import timedelta
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib import messages
