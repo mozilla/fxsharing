@@ -1,6 +1,8 @@
 # fxsharing
 
-Prototype for Firefox content sharing — lets users create and share collections of links. Built with Django 6, Python 3.14, managed with [uv](https://docs.astral.sh/uv/).
+Server for the experimental Link Collections feature in Firefox. Learn more: https://support.mozilla.org/kb/link-collections
+
+Built with Python, Django, Postgres, Celery, Redis, managed with [uv](https://docs.astral.sh/uv/).
 
 ## Setup
 
