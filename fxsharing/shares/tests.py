@@ -56,6 +56,16 @@ def _always_failing_task(value):
     raise ValueError(f"boom: {value}")
 
 
+@shared_task(
+    base=BaseTaskWithRetry,
+    max_retries=0,
+    retry_backoff=False,
+    dead_letter=False,
+)
+def _always_failing_no_dlq_task(value):
+    raise ValueError(f"boom: {value}")
+
+
 class TestShareModel(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -983,6 +993,46 @@ class TestBaseTaskWithRetry(TestCase):
         counter.add.assert_called_once_with(
             1, {"task": _always_failing_task.name, "exception_class": "ValueError"}
         )
+
+    def test_on_failure_skips_dlq_when_dead_letter_false(self):
+        einfo = MagicMock()
+        einfo.traceback = "ValueError: boom"
+
+        with self.assertLogs("fxsharing.shares.tasks", level="ERROR") as cm:
+            _always_failing_no_dlq_task.on_failure(
+                exc=ValueError("boom"),
+                task_id="task-no-dlq",
+                args=("hi",),
+                kwargs={},
+                einfo=einfo,
+            )
+
+        assert not DeadLetterTask.objects.filter(task_id="task-no-dlq").exists()
+        assert any("not dead-lettered" in msg for msg in cm.output)
+        assert any(_always_failing_no_dlq_task.name in msg for msg in cm.output)
+
+    def test_on_failure_no_deadlettered_metric_when_dead_letter_false(self):
+        einfo = MagicMock()
+        einfo.traceback = "ValueError: boom"
+        with patch("fxsharing.shares.metrics.task_deadlettered") as counter:
+            _always_failing_no_dlq_task.on_failure(
+                exc=ValueError("boom"),
+                task_id="task-no-dlq",
+                args=("hi",),
+                kwargs={},
+                einfo=einfo,
+            )
+        counter.add.assert_not_called()
+
+    def test_failing_no_dlq_task_apply_creates_no_dlq_row(self):
+        result = _always_failing_no_dlq_task.apply(args=("payload",))
+        assert result.failed()
+        assert not DeadLetterTask.objects.filter(
+            task_name=_always_failing_no_dlq_task.name
+        ).exists()
+
+    def test_fetch_link_preview_opts_out_of_dlq(self):
+        assert fetch_link_preview.dead_letter is False
 
 
 @override_settings(DEBUG=True)

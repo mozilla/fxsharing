@@ -113,6 +113,10 @@ class BaseTaskWithRetry(DjangoTask):
       - exponential backoff capped at `retry_backoff_max` seconds, with jitter
       - a structured log line on every retry
       - a `DeadLetterTask` row + structured log line when retries are exhausted
+
+    A task can opt out of the DLQ row with `dead_letter=False` (e.g. when its
+    failures are not retryable and so a stored row would only be noise). The
+    failure is still logged and reaches Sentry via the Celery integration.
     """
 
     autoretry_for = (Exception,)
@@ -120,6 +124,7 @@ class BaseTaskWithRetry(DjangoTask):
     retry_backoff_max = 600
     retry_jitter = True
     max_retries = 3
+    dead_letter = True
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         attempt = (self.request.retries or 0) + 1
@@ -147,6 +152,25 @@ class BaseTaskWithRetry(DjangoTask):
 
         traceback = einfo.traceback if einfo else ""
         queue = (self.request.delivery_info or {}).get("routing_key", "") or ""
+
+        if not self.dead_letter:
+            # Failure is not retryable, so a DLQ row would only be noise. Still
+            # log it (and let `super().on_failure` report it to Sentry via the
+            # Celery integration) so the failure stays observable.
+            logger.error(
+                "celery task failed (not dead-lettered): %s exc=%s",
+                self.name,
+                exc,
+                extra={
+                    "task_name": self.name,
+                    "task_id": task_id,
+                    "exception_class": type(exc).__name__,
+                    "queue": queue,
+                },
+            )
+            super().on_failure(exc, task_id, args, kwargs, einfo)
+            return
+
         logger.error(
             "celery task moved to DLQ: %s exc=%s",
             self.name,
@@ -177,6 +201,7 @@ class BaseTaskWithRetry(DjangoTask):
 @shared_task(
     base=BaseTaskWithRetry,
     autoretry_for=(requests.exceptions.RequestException,),
+    dead_letter=False,
 )
 def fetch_link_preview(link_id):
     from .models import Link
