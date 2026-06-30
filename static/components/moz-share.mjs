@@ -28,9 +28,6 @@ class MozLink extends MozLitElement {
     link: { type: Object },
   };
 
-  static POLL_INTERVAL_MS = 10000;
-  static MAX_POLL_ATTEMPTS = 10;
-
   static styles = css`
     moz-card {
       --card-padding: 0;
@@ -124,51 +121,6 @@ class MozLink extends MozLitElement {
       }
     }
   `;
-
-  connectedCallback() {
-    super.connectedCallback();
-
-    const shouldPollForFavicon = !this.link.favicon_url;
-
-    if (shouldPollForFavicon) {
-      let attempt = 0;
-      this.intervalId = setInterval(async () => {
-        try {
-          this.pollForFavicon();
-        } catch {}
-        attempt += 1;
-      }, MozLink.POLL_INTERVAL_MS);
-
-      // Immediately poll for the favicon
-      try {
-        this.pollForFavicon();
-      } catch {}
-      attempt += 1;
-    }
-  }
-
-  async pollForFavicon(attempt) {
-    if (attempt > MozLink.MAX_POLL_ATTEMPTS) {
-      this.stopPollingFavicon();
-      return;
-    }
-
-    let params = new URLSearchParams({ url: this.link.url }).toString();
-    let response = await fetch(`/get_favicon_url?${params}`);
-
-    let { favicon_url } = await response.json();
-    if (favicon_url) {
-      this.link = { ...this.link, favicon_url };
-      this.stopPollingFavicon();
-    }
-  }
-
-  stopPollingFavicon() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-  }
 
   handleLinkClick() {
     recordEvent("link_click", {});
@@ -477,7 +429,12 @@ class MozShare extends MozLitElement {
   static queries = {
     reportDialog: "#report-dialog",
     reportForm: "#report-dialog form",
+    mozLinks: { all: "moz-link" },
   };
+
+  static MAX_RETRIES = 10;
+  static BASE_DELAY = 200;
+  static MAX_DELAY = 20000;
 
   connectedCallback() {
     super.connectedCallback();
@@ -510,6 +467,8 @@ class MozShare extends MozLitElement {
     } catch (e) {
       console.error(e);
     }
+
+    this.setupPollingForFavicons();
   }
 
   /**
@@ -530,6 +489,56 @@ class MozShare extends MozLitElement {
       }
     }
     return links;
+  }
+
+  get linksWithoutFavicons() {
+    return this.flatLinks.filter((l) => !l.favicon_url);
+  }
+
+  async setupPollingForFavicons() {
+    const shouldPollForFavicon = this.linksWithoutFavicons.length > 0;
+
+    if (shouldPollForFavicon) {
+      let attempt = 0;
+
+      while (attempt < MozShare.MAX_RETRIES) {
+        try {
+          return await this.pollForFavicon();
+        } catch {
+          // Use exponential backoff for requesting the favicons
+          const delay = Math.min(
+            MozShare.MAX_DELAY,
+            MozLink.BASE_DELAY * Math.pow(2, attempt),
+          );
+          const jitter = Math.random() * delay;
+
+          await new Promise((resolve) => setTimeout(resolve, delay + jitter));
+
+          attempt += 1;
+        }
+      }
+    }
+  }
+
+  async pollForFavicon() {
+    let params = new URLSearchParams();
+    this.linksWithoutFavicons.forEach((l) => params.append("url", l.url));
+
+    let response = await fetch(`/get_favicon_url?${params.toString()}`);
+
+    let favicons = await response.json();
+    if (favicons) {
+      for (let [hostname, favicon_url] of Object.entries(favicons)) {
+        let matchedHosts = this.linksWithoutFavicons.filter(
+          (l) => new URL(l.url).hostname === hostname,
+        );
+        matchedHosts.forEach((l) => (l.favicon_url = favicon_url));
+      }
+      this.mozLinks.forEach((ml) => ml.requestUpdate());
+      return;
+    }
+
+    throw new Error("Failed to get favicon on this attempt");
   }
 
   copyLink() {

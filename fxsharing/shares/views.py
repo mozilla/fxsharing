@@ -107,19 +107,24 @@ def get_favicon_url(request):
     if not bucket_name:
         return None
 
-    url = request.GET.get("url")
-    hostname = urlparse(url).hostname
-    object_name = f"favicons/{hostname}"
+    favicons = {}
 
-    client = _get_gcs_client()
-    bucket = client.bucket(bucket_name)
-    blob = bucket.blob(object_name)
+    urls = set([urlparse(url).hostname for url in request.GET.getlist("url")])
 
-    favicon_url = None
-    if blob.exists():
-        favicon_url = f"https://storage.googleapis.com/{bucket_name}/{object_name}"
+    for hostname in urls:
+        object_name = f"favicons/{hostname}"
 
-    return JsonResponse({"favicon_url": favicon_url})
+        client = _get_gcs_client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(object_name)
+
+        favicon_url = None
+        if blob.exists():
+            favicon_url = f"https://storage.googleapis.com/{bucket_name}/{object_name}"
+            favicons[hostname] = favicon_url
+
+    # returns a dict with hostname as key and the favicon url as the value
+    return JsonResponse(favicons)
 
 
 SHARE_EXPIRY_DAYS = 7
