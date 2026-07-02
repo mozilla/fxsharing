@@ -1,5 +1,4 @@
 import functools
-import mimetypes
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
@@ -18,16 +17,6 @@ from fxsharing.shares.url_safety import UnsafeURLError, safe_get
 logger = get_task_logger(__name__)
 
 FAVICON_MAX_BYTES = 1 * 1024 * 1024  # 1 MB cap
-CONTENT_TYPE_TO_EXT = {
-    "image/png": ".png",
-    "image/jpeg": ".jpg",
-    "image/jpg": ".jpg",
-    "image/gif": ".gif",
-    "image/webp": ".webp",
-    "image/svg+xml": ".svg",
-    "image/x-icon": ".ico",
-    "image/vnd.microsoft.icon": ".ico",
-}
 
 
 @functools.cache
@@ -76,14 +65,8 @@ def download_and_store_favicon(favicon_url, link_url, headers):
             )
             return None
 
-        ext = (
-            CONTENT_TYPE_TO_EXT.get(content_type)
-            or mimetypes.guess_extension(content_type)
-            or ".ico"
-        )
-
         hostname = urlparse(link_url).hostname
-        object_name = f"favicons/{hostname}{ext}"
+        object_name = f"favicons/{hostname}"
 
         client = _get_gcs_client()
         bucket = client.bucket(bucket_name)

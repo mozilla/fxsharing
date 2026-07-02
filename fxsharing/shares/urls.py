@@ -10,6 +10,7 @@ urlpatterns = [
     path("event", views.record_client_event, name="record_client_event"),
     path("report/<str:shortcode>", views.report_share, name="report_share"),
     path("auth-complete", views.auth_complete, name="auth_complete"),
+    path("get_favicon_url", views.get_favicon_url, name="get_favicon_url"),
 ]
 
 if settings.DEBUG:

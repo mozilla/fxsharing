@@ -429,7 +429,12 @@ class MozShare extends MozLitElement {
   static queries = {
     reportDialog: "#report-dialog",
     reportForm: "#report-dialog form",
+    mozLinks: { all: "moz-link" },
   };
+
+  static MAX_RETRIES = 10;
+  static BASE_DELAY = 200;
+  static MAX_DELAY = 20000;
 
   connectedCallback() {
     super.connectedCallback();
@@ -462,6 +467,8 @@ class MozShare extends MozLitElement {
     } catch (e) {
       console.error(e);
     }
+
+    this.setupPollingForFavicons();
   }
 
   /**
@@ -482,6 +489,56 @@ class MozShare extends MozLitElement {
       }
     }
     return links;
+  }
+
+  get linksWithoutFavicons() {
+    return this.flatLinks.filter((l) => !l.favicon_url);
+  }
+
+  async setupPollingForFavicons() {
+    const shouldPollForFavicon = this.linksWithoutFavicons.length > 0;
+
+    if (shouldPollForFavicon) {
+      let attempt = 0;
+
+      while (attempt < MozShare.MAX_RETRIES) {
+        try {
+          return await this.pollForFavicon();
+        } catch {
+          // Use exponential backoff for requesting the favicons
+          const delay = Math.min(
+            MozShare.MAX_DELAY,
+            MozLink.BASE_DELAY * Math.pow(2, attempt),
+          );
+          const jitter = Math.random() * delay;
+
+          await new Promise((resolve) => setTimeout(resolve, delay + jitter));
+
+          attempt += 1;
+        }
+      }
+    }
+  }
+
+  async pollForFavicon() {
+    let params = new URLSearchParams();
+    this.linksWithoutFavicons.forEach((l) => params.append("url", l.url));
+
+    let response = await fetch(`/get_favicon_url?${params.toString()}`);
+
+    let favicons = await response.json();
+    if (favicons) {
+      for (let [hostname, favicon_url] of Object.entries(favicons)) {
+        let matchedHosts = this.linksWithoutFavicons.filter(
+          (l) => new URL(l.url).hostname === hostname,
+        );
+        matchedHosts.forEach((l) => (l.favicon_url = favicon_url));
+      }
+      this.mozLinks.forEach((ml) => ml.requestUpdate());
+      return;
+    }
+
+    throw new Error("Failed to get favicon on this attempt");
   }
 
   copyLink() {

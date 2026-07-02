@@ -3,6 +3,7 @@ import hmac
 import json
 import logging
 from datetime import timedelta
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib import messages
@@ -36,7 +37,12 @@ from .cinder_policies import (
 from .cinder_schema import decision_created_schema
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
-from .tasks import process_new_share, purge_cdn_cache, submit_share_to_cinder
+from .tasks import (
+    _get_gcs_client,
+    process_new_share,
+    purge_cdn_cache,
+    submit_share_to_cinder,
+)
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +100,31 @@ def view_share(request, shortcode):
     patch_cache_control(response, no_cache=True, private=True)
     patch_vary_headers(response, ["User-Agent"])
     return response
+
+
+def get_favicon_url(request):
+    bucket_name = settings.GCS_IMAGE_BUCKET
+    if not bucket_name:
+        return None
+
+    favicons = {}
+
+    urls = set([urlparse(url).hostname for url in request.GET.getlist("url")])
+
+    for hostname in urls:
+        object_name = f"favicons/{hostname}"
+
+        client = _get_gcs_client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(object_name)
+
+        favicon_url = None
+        if blob.exists():
+            favicon_url = f"https://storage.googleapis.com/{bucket_name}/{object_name}"
+            favicons[hostname] = favicon_url
+
+    # returns a dict with hostname as key and the favicon url as the value
+    return JsonResponse(favicons)
 
 
 SHARE_EXPIRY_DAYS = 7
