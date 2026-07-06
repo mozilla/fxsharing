@@ -153,12 +153,13 @@ def active_share_count(user):
 
 
 @transaction.atomic
-def create_share_from_data(data, user, parent_share=None):
+def create_share_from_data(data, user, parent_share=None, position=0):
     share = Share.objects.create(
         user=user,
         title=data["title"],
         type=data["type"],
         parent_share=parent_share,
+        position=position,
         expires_at=(
             timezone.now() + timedelta(days=SHARE_EXPIRY_DAYS)
             if parent_share is None
@@ -167,11 +168,18 @@ def create_share_from_data(data, user, parent_share=None):
     )
 
     links = []
-    for obj in data["links"]:
+    for index, obj in enumerate(data["links"]):
         if obj.get("url"):
-            links.append(Link(share=share, title=obj.get("title", ""), url=obj["url"]))
+            links.append(
+                Link(
+                    share=share,
+                    title=obj.get("title", ""),
+                    url=obj["url"],
+                    position=index,
+                )
+            )
         elif obj.get("links"):
-            create_share_from_data(obj, user=user, parent_share=share)
+            create_share_from_data(obj, user=user, parent_share=share, position=index)
 
     Link.objects.bulk_create(links)
 
