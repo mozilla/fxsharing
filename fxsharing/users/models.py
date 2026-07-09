@@ -25,13 +25,26 @@ class UserManager(BaseUserManager.from_queryset(SoftDeleteQuerySet)):
         extra_fields.setdefault("is_superuser", True)
         return self.create_user(fxa_id, **extra_fields)
 
+    def create_admin(self, email, **extra_fields):
+        # Internal admin authenticated via Auth0/LDAP OIDC. These accounts have
+        # no fxa_id (they never go through the FxA flow)
+        if not email:
+            raise ValueError("email is required")
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        user = self.model(email=self.normalize_email(email).lower(), **extra_fields)
+        user.set_unusable_password()
+        user.save(using=self._db)
+        return user
+
     def get_queryset(self):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    fxa_id = models.CharField(max_length=32, unique=True)
+    fxa_id = models.CharField(max_length=32, unique=True, null=True, blank=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
     is_banned = models.BooleanField(default=False)
     # Accumulates per-link policy hits from Cinder: +1 for a Web Risk match,
     # +3 for an NCMEC/CSAM match. At or above BAN_THRESHOLD the user is
@@ -49,7 +62,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     all_objects = BaseUserManager.from_queryset(SoftDeleteQuerySet)()
 
     def __str__(self):
-        return self.fxa_id
+        return self.fxa_id or self.email or str(self.id)
 
     def delete(self, *args, **kwargs):
         # Soft-delete only. There is no hard-delete path on this model.
