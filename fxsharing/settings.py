@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.fxa",
+    "mozilla_django_oidc",
 ]
 
 AUTH_USER_MODEL = "users.User"
@@ -132,9 +133,33 @@ TEMPLATES = [
 ]
 
 AUTHENTICATION_BACKENDS = [
+    "mozilla_django_oidc.auth.OIDCAuthenticationBackend",
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
+
+# OIDC configuration (mozilla-django-oidc) for the internal admin.
+OIDC_RP_CLIENT_ID = env("OIDC_RP_CLIENT_ID", default="")
+OIDC_RP_CLIENT_SECRET = env("OIDC_RP_CLIENT_SECRET", default="")
+OIDC_RP_SIGN_ALGO = env("OIDC_RP_SIGN_ALGO", default="RS256")
+OIDC_OP_AUTHORIZATION_ENDPOINT = env(
+    "OIDC_OP_AUTHORIZATION_ENDPOINT",
+    default="https://auth.mozilla.auth0.com/authorize",
+)
+OIDC_OP_TOKEN_ENDPOINT = env(
+    "OIDC_OP_TOKEN_ENDPOINT",
+    default="https://auth.mozilla.auth0.com/oauth/token",
+)
+OIDC_OP_USER_ENDPOINT = env(
+    "OIDC_OP_USER_ENDPOINT",
+    default="https://auth.mozilla.auth0.com/userinfo",
+)
+OIDC_OP_JWKS_ENDPOINT = env(
+    "OIDC_OP_JWKS_ENDPOINT",
+    default="https://auth.mozilla.auth0.com/.well-known/jwks.json",
+)
+# Admins are pre-provisioned; never auto-create on first login.
+OIDC_CREATE_USER = False
 
 WSGI_APPLICATION = "fxsharing.wsgi.application"
 

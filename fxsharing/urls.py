@@ -17,6 +17,7 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import include, path, re_path
+from django.views.generic.base import RedirectView
 
 from fxsharing.shares import views as shares_views
 
@@ -32,6 +33,15 @@ urlpatterns = [
     ),
     # Curated subset of django-allauth routes — see fxsharing/users/urls.py.
     path("accounts/", include("fxsharing.users.urls")),
+    # Send the admin login through Auth0/LDAP OIDC instead of Django's password form
+    path(
+        "admin/login/",
+        RedirectView.as_view(
+            url="/oidc/authenticate/?next=/admin/", query_string=False
+        ),
+        name="admin_oidc_login",
+    ),
     path("admin/", admin.site.urls),
+    path("oidc/", include("mozilla_django_oidc.urls")),
     re_path(r"^.*$", shares_views.page_not_found, {"exception": None}),
 ]
