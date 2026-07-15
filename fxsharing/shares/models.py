@@ -1,3 +1,4 @@
+import heapq
 import math
 import secrets
 import string
@@ -64,12 +65,16 @@ class Share(models.Model):
         blank=True,
         related_name="nested_shares",
     )
+    position = models.PositiveIntegerField(default=0)
     expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 
     objects = SoftDeleteManager()
     all_objects = models.Manager.from_queryset(SoftDeleteQuerySet)()
+
+    class Meta:
+        ordering = ("position",)
 
     @property
     def is_expired(self):
@@ -117,9 +122,12 @@ class Share(models.Model):
         )
 
         if not this_only:
-            links = [link.to_dict() for link in self.links.all()]
-            nested_shares = [s.to_dict() for s in self.nested_shares.all()]
-            this["links"] = links + nested_shares
+            children = heapq.merge(
+                self.links.all(),
+                self.nested_shares.all(),
+                key=lambda obj: obj.position,
+            )
+            this["links"] = [child.to_dict() for child in children]
 
         if self.parent_share:
             this["parent_share"] = self.parent_share.to_dict(this_only=True)
@@ -135,6 +143,7 @@ class LinkManager(models.Manager):
 class Link(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     share = models.ForeignKey(Share, on_delete=models.CASCADE, related_name="links")
+    position = models.PositiveIntegerField(default=0)
     title = models.CharField(max_length=100, blank=True)
     url = models.URLField(max_length=4000)
     safety_status = models.CharField(
@@ -149,6 +158,9 @@ class Link(models.Model):
 
     objects = LinkManager()
     all_objects = models.Manager()
+
+    class Meta:
+        ordering = ("position",)
 
     def __str__(self):
         return self.title or self.url

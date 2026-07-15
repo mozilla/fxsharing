@@ -138,6 +138,24 @@ class TestLinkModel(TestCase):
         assert d["preview_image_url"] == "https://example.com/img.png"
         assert d["favicon_url"] == "https://example.com/favicon.png"
 
+    def test_to_dict_orders_children_by_position(self):
+        Link.objects.create(share=self.share, url="https://c.example", position=2)
+        Link.objects.create(share=self.share, url="https://a.example", position=0)
+        Share.objects.create(
+            title="Folder",
+            user=self.user,
+            type="bookmarks",
+            parent_share=self.share,
+            position=1,
+        )
+
+        children = self.share.to_dict()["links"]
+        assert [c.get("url") or c["title"] for c in children] == [
+            "https://a.example",
+            "Folder",
+            "https://c.example",
+        ]
+
 
 class TestCreateShare(TestCase):
     @classmethod
