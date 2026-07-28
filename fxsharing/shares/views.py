@@ -23,6 +23,8 @@ from django.utils.encoding import force_bytes
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+import jwt
+import requests
 from jsonschema import ValidationError, validate
 from modern_csrf.decorators import csrf_protect
 
@@ -35,6 +37,15 @@ from .cinder_policies import (
     SHARE_REPORT_POLICY_BADNESS,
 )
 from .cinder_schema import decision_created_schema
+from .fxa_schema import (
+    EVENT_DELETE_USER,
+    EVENT_METRICS_OPT_IN,
+    EVENT_METRICS_OPT_OUT,
+    EVENT_PASSWORD_CHANGE,
+    EVENT_PROFILE_CHANGE,
+    EVENT_SUBSCRIPTION_STATE_CHANGE,
+    set_envelope_schema,
+)
 from .models import Link, Share, ShareStatus
 from .share_schema import share_schema
 from .tasks import (
@@ -45,6 +56,8 @@ from .tasks import (
 )
 
 log = logging.getLogger(__name__)
+
+_fxa_verifying_keys_cache = None
 
 
 class CinderWebhookError(ValidationError):
@@ -283,6 +296,9 @@ def record_client_event(request):
     event_type = data.get("event_type", "")
     if event_type not in VALID_CLIENT_EVENTS:
         return HttpResponseBadRequest(f"Unknown event type: {event_type}")
+
+    if request.user.is_authenticated and not request.user.metrics_enabled:
+        return HttpResponse(status=204)
 
     metrics.client_event.add(1, {"event_type": event_type})
     return HttpResponse(status=204)
@@ -555,3 +571,106 @@ def ts_webhook(request):
         data={"fxsharing": {"received": True, "handled": True}},
         status=201,
     )
+
+
+def _fxa_verifying_keys(reload=False):
+    """Return FxA's JWKS signing keys, fetching (and caching) them if needed."""
+    global _fxa_verifying_keys_cache
+    if reload or _fxa_verifying_keys_cache is None:
+        response = requests.get(settings.FXA_SET_JWKS_URI, timeout=5)
+        response.raise_for_status()
+        _fxa_verifying_keys_cache = response.json().get("keys", [])
+    return _fxa_verifying_keys_cache
+
+
+def _fxa_signing_key(kid, reload=False):
+    """Return the RSA public key whose ``kid`` matches the token, or None.
+
+    Selecting by ``kid`` means an unknown key (rotation) is the only thing that
+    warrants a JWKS refetch — a merely invalid token verifies against a key we
+    already hold, so it can't force an outbound fetch.
+    """
+    for jwk in _fxa_verifying_keys(reload=reload):
+        if jwk.get("kid") != kid:
+            continue
+        try:
+            return jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+        except (jwt.PyJWTError, ValueError):
+            return None
+    return None
+
+
+def _handle_fxa_event(user, event_id):
+    """Apply a single FxA SET event to ``user``. Unknown events are ignored."""
+    if event_id == EVENT_DELETE_USER:
+        user.delete()
+        log.info("FxA delete-user: soft-deleted user %s", user.pk)
+    elif event_id == EVENT_PASSWORD_CHANGE:
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        log.info("FxA password-change: signed out user %s", user.pk)
+    elif event_id in (EVENT_METRICS_OPT_OUT, EVENT_METRICS_OPT_IN):
+        user.metrics_enabled = event_id == EVENT_METRICS_OPT_IN
+        user.save(update_fields=["metrics_enabled"])
+        state = "enabled" if user.metrics_enabled else "disabled"
+        log.info("FxA metrics-opt: %s metrics for user %s", state, user.pk)
+    elif event_id == EVENT_SUBSCRIPTION_STATE_CHANGE:
+        log.info("FxA subscription-state-change for user %s; ignoring", user.pk)
+    elif event_id == EVENT_PROFILE_CHANGE:
+        log.info("FxA profile-change for user %s; ignoring in v1", user.pk)
+    else:
+        log.warning("Unsupported FxA event %r for user %s; ignoring", event_id, user.pk)
+
+
+@require_POST
+@csrf_exempt
+def fxa_rp_events(request):
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return HttpResponse(
+            "Unauthorized", status=401, headers={"WWW-Authenticate": "Bearer"}
+        )
+    token = auth.removeprefix("Bearer ")
+    try:
+        kid = jwt.get_unverified_header(token).get("kid")
+    except jwt.PyJWTError:
+        log.error("FxA SET is not a well-formed JWT")
+        return HttpResponse("Invalid token", status=401)
+
+    key = _fxa_signing_key(kid) or _fxa_signing_key(kid, reload=True)
+    if key is None:
+        log.error("No FxA signing key for kid %r", kid)
+        return HttpResponse("Invalid token", status=401)
+
+    try:
+        claims = jwt.decode(
+            token,
+            key,
+            algorithms=["RS256"],
+            issuer=settings.FXA_SET_ISSUER,
+            audience=settings.FXA_CLIENT_ID,
+            leeway=5,
+        )
+    except jwt.PyJWTError as exc:
+        log.error("FxA SET verification failed: %s", exc)
+        return HttpResponse("Invalid token", status=401)
+
+    try:
+        validate(claims, set_envelope_schema)
+    except ValidationError as exc:
+        log.error("FxA SET envelope invalid: %s", exc.message)
+        return HttpResponseBadRequest("Invalid SET envelope")
+
+    User = get_user_model()
+    try:
+        user = User.all_objects.get(fxa_id=claims["sub"])
+    except User.DoesNotExist:
+        log.info("FxA SET for unknown user %s; ignoring", claims["sub"])
+        return JsonResponse(
+            {"fxsharing": {"received": True, "handled": False}}, status=200
+        )
+
+    for event_id in claims["events"]:
+        _handle_fxa_event(user, event_id)
+
+    return JsonResponse({"fxsharing": {"received": True, "handled": True}}, status=200)

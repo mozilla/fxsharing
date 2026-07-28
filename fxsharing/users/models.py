@@ -50,6 +50,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     # +3 for an NCMEC/CSAM match. At or above BAN_THRESHOLD the user is
     # permanently banned and all their shares are blocked.
     badness_counter = models.PositiveSmallIntegerField(default=0)
+    metrics_enabled = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
