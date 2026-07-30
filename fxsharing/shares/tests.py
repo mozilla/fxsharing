@@ -23,10 +23,17 @@ from django.test import (
 from django.urls import clear_url_caches, reverse
 from django.utils import timezone
 
+import jwt
 import requests
 from allauth.account.signals import user_logged_in, user_logged_out
 from celery import shared_task
 
+from fxsharing.shares.fxa_schema import (
+    EVENT_DELETE_USER,
+    EVENT_METRICS_OPT_IN,
+    EVENT_METRICS_OPT_OUT,
+    EVENT_PASSWORD_CHANGE,
+)
 from fxsharing.shares.middleware import OAuthLoginCompleteCookieMiddleware
 from fxsharing.shares.models import (
     DeadLetterTask,
@@ -46,7 +53,11 @@ from fxsharing.shares.url_safety import (
     _resolve_and_validate,
     safe_get,
 )
-from fxsharing.shares.views import dev_login, page_not_found, server_error
+from fxsharing.shares.views import (
+    dev_login,
+    page_not_found,
+    server_error,
+)
 
 User = get_user_model()
 
@@ -1981,3 +1992,124 @@ class TestPurgeCdnCache(TestCase):
             "secret-token"
         )
         mock_post.return_value.raise_for_status.assert_called()
+
+
+@override_settings(
+    FXA_CLIENT_ID="test-client-id",
+    FXA_SET_ISSUER="https://accounts.example.test/",
+)
+class TestFxARPEvents(TestCase):
+    KID = "test-key-1"
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        cls.private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        public_jwk = jwt.algorithms.RSAAlgorithm.to_jwk(
+            cls.private_key.public_key(), as_dict=True
+        )
+        public_jwk["alg"] = "RS256"
+        public_jwk["kid"] = cls.KID
+        cls.public_jwk = public_jwk
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(fxa_id="fxauid1234567890")
+
+    def setUp(self):
+        patcher = patch("fxsharing.shares.views._fxa_verifying_keys")
+        self.mock_keys = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.mock_keys.return_value = [self.public_jwk]
+
+    def _post(self, token):
+        return self.client.post(
+            reverse("fxa_rp_events"),
+            content_type="application/jwt",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+    def _make_set(
+        self, events, *, sub=None, iss=None, aud="test-client-id", key=None, **extra
+    ):
+        claims = {
+            "iss": iss or settings.FXA_SET_ISSUER,
+            "sub": sub or self.user.fxa_id,
+            "aud": aud,
+            "iat": int(timezone.now().timestamp()),
+            "jti": "test-jti-0001",
+            "events": events,
+            **extra,
+        }
+        return jwt.encode(
+            claims,
+            key or self.private_key,
+            algorithm="RS256",
+            headers={"kid": self.KID},
+        )
+
+    def test_delete_user_soft_deletes_user_and_shares(self):
+        share = Share.objects.create(title="Doomed", user=self.user)
+        token = self._make_set({EVENT_DELETE_USER: {}})
+        response = self._post(token)
+        assert response.status_code == 200
+        assert not User.objects.filter(pk=self.user.pk).exists()
+        assert User.all_objects.get(pk=self.user.pk).deleted_at is not None
+        assert not Share.objects.filter(pk=share.pk).exists()
+
+    def test_password_change_invalidates_sessions(self):
+        old_hash = self.user.get_session_auth_hash()
+        token = self._make_set({EVENT_PASSWORD_CHANGE: {"changeTime": 1}})
+        response = self._post(token)
+        assert response.status_code == 200
+        self.user.refresh_from_db()
+        assert self.user.get_session_auth_hash() != old_hash
+
+    def test_metrics_opt_out_and_opt_in(self):
+        self._post(self._make_set({EVENT_METRICS_OPT_OUT: {}}))
+        self.user.refresh_from_db()
+        assert self.user.metrics_enabled is False
+
+        self._post(self._make_set({EVENT_METRICS_OPT_IN: {}}))
+        self.user.refresh_from_db()
+        assert self.user.metrics_enabled is True
+
+    def test_unknown_user_returns_200(self):
+        token = self._make_set({EVENT_DELETE_USER: {}}, sub="nonexistentuid")
+        response = self._post(token)
+        assert response.status_code == 200
+        assert response.json()["fxsharing"]["handled"] is False
+
+    def test_missing_bearer_header_returns_401(self):
+        response = self.client.post(
+            reverse("fxa_rp_events"), content_type="application/jwt"
+        )
+        assert response.status_code == 401
+        assert response["WWW-Authenticate"] == "Bearer"
+
+    def test_bad_signature_returns_401_without_refetching_keys(self):
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        other_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        token = self._make_set({EVENT_DELETE_USER: {}}, key=other_key)
+        response = self._post(token)
+        assert response.status_code == 401
+        assert self.mock_keys.call_count == 1
+
+    def test_rotated_key_is_picked_up_after_refetch(self):
+        self.mock_keys.side_effect = [[], [self.public_jwk]]
+        response = self._post(self._make_set({EVENT_METRICS_OPT_OUT: {}}))
+        assert response.status_code == 200
+        assert self.mock_keys.call_count == 2
+        self.user.refresh_from_db()
+        assert self.user.metrics_enabled is False
+
+    def test_malformed_envelope_returns_400(self):
+        claims = {"iss": settings.FXA_SET_ISSUER, "aud": "test-client-id"}
+        token = jwt.encode(
+            claims, self.private_key, algorithm="RS256", headers={"kid": self.KID}
+        )
+        response = self._post(token)
+        assert response.status_code == 400

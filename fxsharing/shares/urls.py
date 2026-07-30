@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.landing, name="landing"),
     path("api/v1/create", views.create_share, name="create_share"),
     path("api/v1/ts_response", views.ts_webhook, name="ts_webhook"),
+    path("api/v1/fxa-rp-events", views.fxa_rp_events, name="fxa_rp_events"),
     path("event", views.record_client_event, name="record_client_event"),
     path("report/<str:shortcode>", views.report_share, name="report_share"),
     path("auth-complete", views.auth_complete, name="auth_complete"),

@@ -87,6 +87,8 @@ ROOT_URLCONF = "fxsharing.urls"
 
 # FxA configuration (django-allauth)
 
+FXA_CLIENT_ID = env("FXA_CLIENT_ID", default="")
+
 # Only allow FxA login - no site login/logout pages
 SOCIALACCOUNT_ONLY = True
 ACCOUNT_EMAIL_VERIFICATION = "none"
@@ -103,7 +105,7 @@ SOCIALACCOUNT_STORE_TOKENS = False
 SOCIALACCOUNT_PROVIDERS = {
     "fxa": {
         "APP": {
-            "client_id": env("FXA_CLIENT_ID", default=""),
+            "client_id": FXA_CLIENT_ID,
             "secret": env("FXA_CLIENT_SECRET", default=""),
         },
         "SCOPE": ["profile"],
@@ -115,6 +117,11 @@ SOCIALACCOUNT_PROVIDERS = {
         ),
     }
 }
+
+FXA_SET_ISSUER = env("FXA_SET_ISSUER", default="https://accounts.stage.mozaws.net/")
+FXA_SET_JWKS_URI = env(
+    "FXA_SET_JWKS_URI", default="https://accounts.stage.mozaws.net/jwks"
+)
 
 TEMPLATES = [
     {
