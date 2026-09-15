@@ -1,3 +1,14 @@
+/* Firefox detection is done client-side (base.html) so the banner isn't cached
+ * per user agent. These lived in common-shared.css until bug 2072030 — that
+ * file is vendored from acorn-web, so a refresh silently wiped them. */
+:root:not(.is-firefox) .fx-only {
+  display: none;
+}
+
+:root.is-firefox .not-fx {
+  display: none;
+}
+
 body {
   min-height: 100vh;
   margin: 0;

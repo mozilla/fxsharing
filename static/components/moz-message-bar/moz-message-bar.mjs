@@ -6,12 +6,6 @@ import { MozLitElement } from "../../dependencies/lit-utils.mjs";
 // eslint-disable-next-line import/no-unassigned-import
 import "../moz-button/moz-button.mjs";
 import "../../dependencies/acorn-icon.mjs";
-const _l10nFallback = {
-  "moz-message-bar-icon-error": "Error",
-  "moz-message-bar-icon-info": "Info",
-  "moz-message-bar-icon-success": "Success",
-  "moz-message-bar-icon-warning": "Warning"
-};
 /**
 * @typedef {"info" | "warning" | "success" | "error"} MozMessageBarType
 */
@@ -160,7 +154,8 @@ export default class MozMessageBar extends MozLitElement {
           <acorn-icon
             class="icon"
             src=${iconSrc}
-            data-l10n-id=${l10nId} alt=${_l10nFallback[l10nId] ?? ""}></acorn-icon>
+            data-l10n-id=${l10nId}
+            data-l10n-attrs="alt"></acorn-icon>
         </div>
       `;
     }
@@ -179,7 +174,7 @@ export default class MozMessageBar extends MozLitElement {
           type="icon ghost"
           class="close"
           size=${ifDefined(size)}
-          data-l10n-id="moz-message-bar-close-button" aria-label="Close" title="Close"
+          data-l10n-id="moz-message-bar-close-button"
           @click=${this.dismiss}
         ></moz-button>
       `;
@@ -233,7 +228,7 @@ export default class MozMessageBar extends MozLitElement {
   static styles = [...MozLitElement.styles ?? [], css`/* From chrome://global/content/elements/moz-message-bar.css */
 :host {
   --message-bar-icon-color: var(--icon-color-information);
-  --message-bar-icon-size: var(--size-item-small);
+  --message-bar-icon-size: var(--icon-size);
   --message-bar-icon-close-url: url("../../assets/close.svg");
   --message-bar-container-min-height: var(--size-item-large);
   --message-bar-border-color: oklch(from var(--message-bar-icon-color) l c h / 20%);
@@ -305,7 +300,7 @@ color: var(--message-bar-icon-color);
 }
 
 .heading {
-  font-weight: var(--heading-font-weight);
+  font-weight: var(--font-weight-heading);
 }
 
 .message.has-link-after {

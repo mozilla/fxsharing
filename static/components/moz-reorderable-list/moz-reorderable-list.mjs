@@ -355,14 +355,15 @@ export default class MozReorderableList extends MozLitElement {
   }
   static styles = [...MozLitElement.styles ?? [], css`/* From chrome://global/content/elements/moz-reorderable-list.css */
 :host {
+  --moz-reorderable-list-indicator-height: var(--dimension-2);
+  --moz-reorderable-list-indicator-color: var(--color-accent-primary);
   position: relative;
   display: block;
-  --moz-reorderable-list-indicator-height: 2px;
 }
 
 .indicator {
   height: var(--moz-reorderable-list-indicator-height);
-  background-color: var(--color-accent-primary);
+  background-color: var(--moz-reorderable-list-indicator-color);
   pointer-events: none;
   margin-block: calc(-1 * var(--moz-reorderable-list-indicator-height));
   width: 4em;

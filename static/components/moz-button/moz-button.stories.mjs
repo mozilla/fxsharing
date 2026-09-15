@@ -3,9 +3,6 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 import { html, ifDefined, classMap } from "../../dependencies/lit.all.mjs";
 import "./moz-button.mjs";
-const _l10nFallback = {
-  "choose-folder-button": ""
-};
 export default {
   title: "UI Widgets/Button",
   component: "moz-button",
@@ -62,7 +59,8 @@ const Template = ({ type, size, l10nId, iconSrc, disabled, accesskey, clickHandl
   </style>
   <moz-button
     @click=${clickHandler}
-    data-l10n-id=${l10nId} label=${_l10nFallback[l10nId] ?? ""}
+    data-l10n-id=${l10nId}
+    data-l10n-attrs="label"
     type=${type}
     size=${size}
     ?disabled=${disabled}

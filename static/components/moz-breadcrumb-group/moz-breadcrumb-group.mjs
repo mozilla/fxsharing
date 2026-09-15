@@ -124,7 +124,7 @@ export class MozBreadcrumbGroup extends MozLitElement {
   }
   render() {
     return html`
-      <nav data-l10n-id="moz-breadcrumb-group-nav" aria-label="Breadcrumbs">
+      <nav data-l10n-id="moz-breadcrumb-group-nav">
         <ol>
           ${this.breadcrumbs.map((breadcrumb, i) => {
       return html`<li>

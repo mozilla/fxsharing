@@ -3,6 +3,7 @@
 // Import and call initFluent() to enable localized strings via document.l10n.
 
 export const FTL_FILES = [
+  "toolkit/global/mozBadge.ftl",
   "toolkit/global/mozBoxBase.ftl",
   "toolkit/global/mozBreadcrumbGroup.ftl",
   "toolkit/global/mozButton.ftl",

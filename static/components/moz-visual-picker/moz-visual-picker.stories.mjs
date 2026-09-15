@@ -69,7 +69,7 @@ function getSlottedContent(type, index) {
   if (type == "card") {
     return html`<div class="slotted demo-card">
       <acorn-icon
-        src="${new URL("../../assets/system-theme-background.svg", import.meta.url).href}"></acorn-icon>
+        src="chrome://browser/content/profiles/assets/system-theme-background.svg"></acorn-icon>
       <span>I'm card number ${index + 1}</span>
     </div>`;
   }

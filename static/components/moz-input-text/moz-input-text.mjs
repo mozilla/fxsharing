@@ -80,7 +80,7 @@ export default class MozInputText extends MozBaseInputElement {
 
 #input {
   width: 100%;
-  max-width: var(--input-text-max-width);
+  max-width: var(--input-text-max-width, none);
   min-height: var(--input-text-min-height);
   padding-inline: var(--space-medium);
   border: var(--input-text-border);

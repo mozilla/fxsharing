@@ -27,6 +27,14 @@ export default {
         new URL("../../assets/edit.svg", import.meta.url).href
       ],
       control: { type: "select" }
+    },
+    layout: {
+      options: [
+        "default",
+        "medium-icon",
+        "large-icon"
+      ],
+      control: { type: "select" }
     }
   },
   parameters: {
@@ -53,7 +61,7 @@ moz-box-more-action =
     `
   }
 };
-const Template = ({ l10nId, iconSrc, slottedContent, layout, slottedActions, slottedActionsStart, supportPage }) => html`
+const Template = ({ l10nId, iconSrc, slottedContent, layout, slottedActions, slottedActionsStart, supportPage, slottedDescription }) => html`
   <style>
     .container {
       width: 400px;
@@ -112,6 +120,10 @@ const Template = ({ l10nId, iconSrc, slottedContent, layout, slottedActions, slo
               slot="actions"
             ></moz-button>
           ` : ""}
+      ${slottedDescription ? html`<span slot="description"
+            >This is a slotted description
+            <a href="https://www.example.com" target="_blank">click me</a></span
+          >` : ""}
     </moz-box-item>
   </div>
 `;
@@ -123,7 +135,9 @@ Default.args = {
   slottedContent: false,
   slottedActions: false,
   slottedActionsStart: false,
-  supportPage: ""
+  supportPage: "",
+  slottedDescription: false,
+  layout: "default"
 };
 export const WithDescription = Template.bind({});
 WithDescription.args = {
@@ -158,6 +172,11 @@ export const WithSlottedActionAtTheStart = Template.bind({});
 WithSlottedActionAtTheStart.args = {
   ...Default.args,
   slottedActionsStart: true
+};
+export const WithSlottedDescription = Template.bind({});
+WithSlottedDescription.args = {
+  ...Default.args,
+  slottedDescription: true
 };
 export const WithSupportPage = Template.bind({});
 WithSupportPage.args = {

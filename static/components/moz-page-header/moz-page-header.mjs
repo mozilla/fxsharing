@@ -52,7 +52,7 @@ export default class MozPageHeader extends MozLitElement {
     }
     return html`<moz-button
       type="ghost"
-      data-l10n-id="back-nav-button-title" title="Go back"
+      data-l10n-id="back-nav-button-title"
       iconsrc="${new URL("../../assets/arrow-left.svg", import.meta.url).href}"
       class="back-button"
       @click=${this.handleBack}

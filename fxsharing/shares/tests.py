@@ -866,6 +866,44 @@ class TestLandingView(TestCase):
         assert chrome.content == firefox.content
 
 
+class TestNovaToggle(TestCase):
+    """Nova is Firefox's visual refresh; see fxsharing.shares.context_processors."""
+
+    NOVA_HTML = b'<html lang="en" class="nova">'
+    NOVA_CSS = b"styles/tokens-nova.css"
+
+    def assert_nova(self, response, expected):
+        assert (self.NOVA_HTML in response.content) is expected
+        assert (self.NOVA_CSS in response.content) is expected
+
+    @override_settings(NOVA_ENABLED=False)
+    def test_off_by_default(self):
+        self.assert_nova(self.client.get(reverse("landing")), False)
+
+    @override_settings(NOVA_ENABLED=True)
+    def test_on_when_setting_enabled(self):
+        self.assert_nova(self.client.get(reverse("landing")), True)
+
+    @override_settings(NOVA_ENABLED=False)
+    def test_query_param_opts_in(self):
+        self.assert_nova(self.client.get(reverse("landing"), {"nova": "1"}), True)
+
+    @override_settings(NOVA_ENABLED=True)
+    def test_query_param_opts_out(self):
+        self.assert_nova(self.client.get(reverse("landing"), {"nova": "0"}), False)
+
+    @override_settings(NOVA_ENABLED=False)
+    def test_unrecognised_query_param_falls_back_to_the_setting(self):
+        self.assert_nova(self.client.get(reverse("landing"), {"nova": "yes"}), False)
+
+    @override_settings(NOVA_ENABLED=True)
+    def test_applies_to_share_pages_too(self):
+        user = get_user_model().objects.create(fxa_id="nova-fxa-id")
+        share = Share.objects.create(title="Nova share", user=user)
+        response = self.client.get(reverse("view_share", args=[share.shortcode]))
+        self.assert_nova(response, True)
+
+
 class TestDockerflowEndpoints(TestCase):
     def test_lbheartbeat_get(self):
         response = self.client.get("/__lbheartbeat__")

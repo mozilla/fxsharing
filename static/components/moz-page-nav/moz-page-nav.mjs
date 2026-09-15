@@ -207,7 +207,7 @@ nav {
 
   & > .page-nav-heading {
     font-size: var(--font-size-xlarge);
-    font-weight: var(--heading-font-weight);
+    font-weight: var(--font-weight-heading);
     margin-block: 0;
 
     @media (width <= 52rem) {

@@ -5,6 +5,8 @@ import { html, ifDefined } from "../../dependencies/lit.all.mjs";
 // eslint-disable-next-line import/no-unassigned-import
 import "./moz-fieldset.mjs";
 // eslint-disable-next-line import/no-unassigned-import
+import "../moz-badge/moz-badge.mjs";
+// eslint-disable-next-line import/no-unassigned-import
 import "../moz-toggle/moz-toggle.mjs";
 // eslint-disable-next-line import/no-unassigned-import
 import "../moz-button/moz-button.mjs";
@@ -40,6 +42,14 @@ export default {
         new URL("../../assets/edit.svg", import.meta.url).href
       ],
       control: { type: "select" }
+    },
+    badge: {
+      options: [
+        "",
+        "beta",
+        "new"
+      ],
+      control: { type: "select" }
     }
   },
   parameters: {
@@ -50,10 +60,12 @@ moz-fieldset-label =
 moz-fieldset-description =
   .label = Some Settings
   .description = Perhaps you want to have a longer description of what these settings do. Width is set explicitly for emphasis.
+moz-badge-beta = Beta
+moz-badge-new = New
   `
   }
 };
-const Template = ({ label, description, l10nId, supportPage, hasSlottedSupportLinks, headingLevel, disabled, iconSrc }) => html`
+const Template = ({ label, description, l10nId, supportPage, hasSlottedSupportLinks, headingLevel, disabled, iconSrc, badge }) => html`
   <moz-fieldset
     data-l10n-id=${l10nId}
     .label=${label}
@@ -63,6 +75,7 @@ const Template = ({ label, description, l10nId, supportPage, hasSlottedSupportLi
     support-page=${supportPage}
     style="width: 400px;"
     iconsrc=${ifDefined(iconSrc)}
+    badge=${ifDefined(badge || undefined)}
   >
     <moz-toggle
       pressed
@@ -96,7 +109,8 @@ Default.args = {
   l10nId: "moz-fieldset-label",
   hasSlottedSupportLinks: false,
   disabled: false,
-  iconSrc: ""
+  iconSrc: "",
+  badge: ""
 };
 export const WithDescription = Template.bind({});
 WithDescription.args = {
@@ -137,4 +151,9 @@ export const WithIcon = Template.bind({});
 WithIcon.args = {
   ...WithSupportLink.args,
   iconSrc: new URL("../../assets/info.svg", import.meta.url).href
+};
+export const WithBadge = Template.bind({});
+WithBadge.args = {
+  ...Default.args,
+  badge: "new"
 };
