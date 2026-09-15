@@ -114,6 +114,7 @@ export default class MozPromo extends MozLitElement {
 :host {
   --promo-message-text-color: var(--text-color);
   --promo-heading-text-color: var(--promo-message-text-color);
+  --promo-background-color: var(--background-color-box-info);
   --promo-border: var(--promo-border-width) solid var(--promo-border-color);
   --promo-border-color: var(--border-color);
   --promo-border-width: var(--border-width);

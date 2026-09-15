@@ -26,6 +26,7 @@ const NAVIGATION_DIRECTIONS = {
 * @property {string} iconSrc - The src for an optional icon shown next to the label.
 * @property {"default"|"medium-icon"|"large-icon"} layout - Layout style for the box content.
 * @slot default - Slot for the box item's content, which overrides label and description.
+* @slot description - Slot for custom description content.
 * @slot actions - Slot for the actions positioned at the end of the component container.
 * @slot actions-start - Slot for the actions positioned at the start of the component container.
 */
@@ -39,6 +40,10 @@ export default class MozBoxItem extends MozBoxBase {
     supportPage: {
       type: String,
       attribute: "support-page"
+    },
+    _hasSlottedDescription: {
+      type: Boolean,
+      state: true
     }
   };
   static queries = {
@@ -50,7 +55,14 @@ export default class MozBoxItem extends MozBoxBase {
   constructor() {
     super();
     this.layout = "default";
+    this._hasSlottedDescription = false;
     this.addEventListener("keydown", (e) => this.handleKeydown(e));
+  }
+  get hasDescription() {
+    return this.description || this._hasSlottedDescription;
+  }
+  checkSlottedDescription(e) {
+    this._hasSlottedDescription = !!e.target?.assignedNodes()?.length;
   }
   firstUpdated() {
     this.getActionEls();
@@ -93,7 +105,7 @@ export default class MozBoxItem extends MozBoxBase {
   }
   get isDraggable() {
     const reorderableParent = this.closest("moz-box-group");
-    return reorderableParent?.type == GROUP_TYPES.reorderable && this.slot != "header" && this.slot != "footer";
+    return reorderableParent?.type == GROUP_TYPES.reorderable && this.slot != "header" && this.slot != "footer" && !this.slot.includes("static");
   }
   focus(event) {
     if (event?.key == "Up" || event?.key == "ArrowUp") {
@@ -133,28 +145,48 @@ export default class MozBoxItem extends MozBoxBase {
       </span>
     `;
   }
+  descriptionTemplate() {
+    if (!this.description) {
+      return html`<slot
+        class="description text-deemphasized"
+        id="description"
+        name="description"
+        @slotchange=${this.checkSlottedDescription}
+      ></slot>`;
+    }
+    return html`<span class="description text-deemphasized" id="description">
+      ${this.description}
+    </span>`;
+  }
   textTemplate() {
     if (this.supportPage) {
       return this.supportTextTemplate();
     }
-    return super.textTemplate();
+    return html`<div
+      class=${classMap({
+      "text-content": true,
+      "has-icon": this.iconSrc,
+      "has-description": this.hasDescription
+    })}
+    >
+      ${this.iconTemplate()}${this.labelTemplate()}${this.descriptionTemplate()}
+    </div>`;
   }
   supportTextTemplate() {
     return html`<div
       class=${classMap({
       "text-content": true,
       "has-icon": this.iconSrc,
-      "has-description": this.description,
+      "has-description": this.hasDescription,
       "has-support-page": this.supportPage
     })}
     >
+      ${this.iconTemplate()}
       <span class="label-wrapper">
-        ${this.iconTemplate()}<span>
-          ${this.labelTemplate()}${!this.description ? this.supportPageTemplate() : ""}
-        </span>
+        ${this.labelTemplate()}${!this.hasDescription ? this.supportPageTemplate() : ""}
       </span>
       <span class="description-wrapper">
-        ${this.descriptionTemplate()}${this.description ? this.supportPageTemplate() : ""}
+        ${this.descriptionTemplate()}${this.hasDescription ? this.supportPageTemplate() : ""}
       </span>
     </div>`;
   }
@@ -199,22 +231,25 @@ export default class MozBoxItem extends MozBoxBase {
   }
 }
 
-.text-content.has-support-page {
-  display: flex;
+:host([static]) {
+  padding-inline-start: calc(var(--button-size-icon)  + var(--space-small));
+}
 
-  &.has-description {
+.text-content.has-support-page {
+  & .label-wrapper {
+    grid-area: label;
+    display: flex;
+    gap: var(--space-xsmall);
+    align-items: center;
     flex-wrap: wrap;
   }
 
-  & .label-wrapper {
-    width: 100%;
-    display: flex;
-    gap: var(--space-small);
-    align-items: center;
+  & .description-wrapper {
+    grid-area: description;
+  }
 
-    & .support-page {
-      margin-inline-start: var(--space-xsmall);
-    }
+  &:not(.has-description) .description-wrapper {
+    display: none;
   }
 
   & .description, & .support-page {
@@ -224,6 +259,10 @@ export default class MozBoxItem extends MozBoxBase {
 
 .description + .support-page {
   font-size: var(--font-size-small);
+}
+
+.text-content:not(.has-description) slot[name="description"] {
+  display: none;
 }
 
 .box-container {
@@ -253,7 +292,7 @@ export default class MozBoxItem extends MozBoxBase {
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   border-radius: var(--button-border-radius);
-background-color: currentColor;
+background-color: var(--text-color);
   flex-shrink: 0;
 }
 

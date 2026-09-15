@@ -110,7 +110,8 @@ export default class MozFiveStar extends MozLitElement {
       <div
         class="stars"
         role="img"
-        title=${starsTitle ?? `Rated ${rating.toLocaleString(undefined, { maximumFractionDigits: 1 })} out of 5`} data-l10n-id=${ifDefined(starsTitle ? undefined : "moz-five-star-rating")} data-l10n-args=${ifDefined(starsTitle ? undefined : JSON.stringify({ rating }))}
+        data-l10n-id=${ifDefined(starsTitle ? undefined : "moz-five-star-rating")}
+        data-l10n-args=${ifDefined(starsTitle ? undefined : JSON.stringify({ rating }))}
       >
         ${this.getStars().map(({ rating: ratingValue, fill }) => {
       return html`<span
@@ -121,7 +122,8 @@ export default class MozFiveStar extends MozLitElement {
             fill=${fill}
             rating=${ratingValue}
             @click=${this.onClick}
-            title=${ifDefined(selectable ? `Rate ${ratingValue.toLocaleString(undefined, { maximumFractionDigits: 1 })} out of 5` : undefined)} data-l10n-id=${ifDefined(selectable ? "moz-five-star-rating-rate-text" : undefined)} data-l10n-args=${ifDefined(selectable ? JSON.stringify({ rating: ratingValue }) : undefined)}
+            data-l10n-id=${ifDefined(selectable ? "moz-five-star-rating-rate-text" : undefined)}
+            data-l10n-args=${ifDefined(selectable ? JSON.stringify({ rating: ratingValue }) : undefined)}
           ></span>`;
     })}
       </div>
@@ -139,7 +141,7 @@ export default class MozFiveStar extends MozLitElement {
 
 .stars {
   --rating-star-size: var(--icon-size);
-  --rating-star-spacing: .3ch;
+  --rating-star-spacing: var(--space-xxsmall);
   display: inline-flex;
   align-content: center;
   justify-content: center;
@@ -157,7 +159,7 @@ export default class MozFiveStar extends MozLitElement {
   mask-repeat: no-repeat;
   -webkit-mask-size: var(--rating-star-size) var(--rating-star-size);
   mask-size: var(--rating-star-size) var(--rating-star-size);
-  padding-inline: calc(var(--rating-star-spacing) / 2);
+  padding-inline: var(--rating-star-spacing);
   background-color: var(--icon-color);
   &:first-of-type {
     padding-inline-start: unset;

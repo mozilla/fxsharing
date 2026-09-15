@@ -6,7 +6,6 @@
     --background-color-box-info: light-dark(var(--color-gray-20), var(--color-gray-80));
     --background-color-canvas: light-dark(var(--color-white), var(--color-gray-90));
     --background-color-list-item-hover: color-mix(in srgb, var(--color-accent-primary) 20%, transparent);
-    --table-row-background-color-alternate: light-dark(#f0f0f4, var(--color-gray-80));
     --border-color: light-dark(var(--color-gray-50), var(--color-gray-70));
     --border-color-deemphasized: light-dark(var(--color-gray-30), var(--color-gray-70));
     --border-color-interactive: light-dark(var(--color-gray-60), var(--color-gray-50));
@@ -32,6 +31,7 @@
     --link-color-visited: var(--link-color);
     --page-main-content-width: 664px;
     --table-header-text-color: light-dark(var(--color-white), var(--color-gray-100));
+    --table-row-background-color-alternate: light-dark(#f0f0f4, var(--color-gray-80));
     --text-color: light-dark(var(--color-gray-100), var(--color-gray-05));
     --text-color-accent-primary-selected: light-dark(var(--color-white), var(--color-gray-100));
   }

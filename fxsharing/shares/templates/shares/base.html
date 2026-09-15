@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en"{% if nova_enabled %} class="nova"{% endif %}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -31,6 +31,11 @@
       content="{{ request.scheme }}://{{ request.get_host }}{% static 'assets/preview-background.svg' %}"
     />
 
+    {% if nova_enabled %}
+    <!-- Must come before common-shared.css: it declares the cascade layer order
+         the Nova token layers depend on. -->
+    <link rel="stylesheet" href="{% static 'styles/tokens-nova.css' %}" />
+    {% endif %}
     <link rel="stylesheet" href="{% static 'styles/common-shared.css' %}" />
     <link rel="stylesheet" href="{% static 'styles/base.css' %}" />
     {% block extra_css %}{% endblock %}

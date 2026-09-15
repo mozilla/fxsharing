@@ -516,7 +516,7 @@ export class MozBaseInputElement extends MozLitElement {
 
   @media (forced-colors) {
     :host(:state(disabled)) {
-      color: graytext;
+      color: var(--text-color-disabled);
     }
   }
 
@@ -792,7 +792,7 @@ border-radius: var(--box-icon-border-radius);
   .description {
     grid-area: description;
     display: flex;
-    justify-content: center;
+    justify-content: start;
     gap: var(--space-small);
     align-self: var(--box-description-alignment);
   }

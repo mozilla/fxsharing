@@ -82,6 +82,9 @@ class MenuController {
   * @param {MouseEvent|KeyboardEvent} event
   */
   openPanelList = (event) => {
+    if (event.type == "click") {
+      event.preventDefault();
+    }
     if (event.type == "mousedown" && event.button == 0 || event.inputSource == MouseEvent.MOZ_SOURCE_KEYBOARD || !event.detail) {
       if (this.#hostIsSplitButton) {
         this.#menuEl?.toggle(event, this.host.chevronButtonEl);
@@ -116,6 +119,10 @@ class MenuController {
     }
     this.host.ariaHasPopup = "menu";
     this.host.ariaExpanded = this.#menuEl?.open ? "true" : "false";
+    let triggerEl = this.#hostIsSplitButton ? this.host.chevronButtonEl : this.host.buttonEl;
+    if (triggerEl) {
+      triggerEl.popoverTargetElement = this.#menuEl;
+    }
   }
   /**
   * Cleans up panel-list integration,
@@ -125,6 +132,10 @@ class MenuController {
     this.removePanelListListeners();
     this.host.ariaHasPopup = null;
     this.host.ariaExpanded = null;
+    let triggerEl = this.#hostIsSplitButton ? this.host.chevronButtonEl : this.host.buttonEl;
+    if (triggerEl) {
+      triggerEl.popoverTargetElement = null;
+    }
   }
 }
 /**
@@ -289,7 +300,7 @@ export default class MozButton extends MozLitElement {
         id="chevron-button"
         size=${this.size}
         ?disabled=${this.disabled || this.parentDisabled}
-        data-l10n-id="moz-button-more-options" aria-label="More Options" title="More options"
+        data-l10n-id="moz-button-more-options"
         aria-labelledby="main-button chevron-button"
         aria-expanded=${ifDefined(this.ariaExpanded)}
         aria-haspopup=${ifDefined(this.ariaHasPopup)}

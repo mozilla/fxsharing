@@ -53,8 +53,8 @@
 
 .error-callout-copy h1 {
   margin-block: 0 var(--space-large);
-  font-size: var(--heading-font-size-xlarge);
-  font-weight: var(--heading-font-weight);
+  font-size: var(--font-size-heading-xlarge);
+  font-weight: var(--font-weight-heading);
 }
 
 .error-callout-copy p {

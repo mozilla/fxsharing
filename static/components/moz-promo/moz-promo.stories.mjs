@@ -108,7 +108,7 @@ SquareImage.args = { ...ImageAtStart.args };
 export const RectangleImage = Template.bind({});
 RectangleImage.args = {
   ...ImageAtStart.args,
-  imageSrc: "chrome://global/content/aboutconfig/background.svg"
+  imageSrc: new URL("../../assets/background.svg", import.meta.url).href
 };
 export const SlottedAction = Template.bind({});
 SlottedAction.args = {

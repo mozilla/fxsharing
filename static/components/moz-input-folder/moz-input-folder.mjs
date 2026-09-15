@@ -72,9 +72,16 @@ export default class MozInputFolder extends MozInputText {
     return typeof Services !== "undefined";
   }
   async getFolderFromPath(path) {
+    if (Cu.isInAutomation && Services.appinfo.OS === "WINNT" && path?.includes("/")) {
+      console.error(`moz-input-folder: path contains forward slashes: "${path}"`, new Error().stack);
+    }
     let folder = null;
     try {
-      folder = await IOUtils.getDirectory(path);
+      // nsIFile.initWithPath() accepts both forward and backward slashes and
+      // normalizes to platform-native format (backslashes on Windows).
+      const file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+      file.initWithPath(path);
+      folder = await IOUtils.getDirectory(file.path);
     } catch (e) {
       //Not a valid path
       console.error("The error occurred while attempting to get directory from the moz-input-folder value");
@@ -131,10 +138,12 @@ export default class MozInputFolder extends MozInputText {
     })}
         <moz-button
           id="choose-folder-button"
-          data-l10n-id="choose-folder-button" accesskey=""
+          data-l10n-id="choose-folder-button"
+          data-l10n-attrs="accesskey"
           ?disabled=${this.disabled || this.parentDisabled}
           @click=${this.openFolderPicker}
         ></moz-button>
+        <slot name="actions"></slot>
       </div>
     `;
   }
@@ -148,17 +157,22 @@ export default class MozInputFolder extends MozInputText {
 }
 
 #input {
-  min-width: var(--input-folder-min-width);
-  max-width: var(--input-folder-max-width);
+  min-width: var(--input-folder-min-width, none);
+  max-width: var(--input-folder-max-width, none);
 }
 
 .container {
   display: flex;
   align-items: flex-end;
   gap: var(--input-folder-space-inline);
+  flex-wrap: var(--input-folder-wrap);
 }
 
 #choose-folder-button {
+  white-space: nowrap;
+}
+
+slot[name="actions"]::slotted(moz-button) {
   white-space: nowrap;
 }
 

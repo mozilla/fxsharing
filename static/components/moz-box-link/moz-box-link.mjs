@@ -50,14 +50,14 @@ export default class MozBoxLink extends MozBoxBase {
             class="button"
             is="moz-support-link"
             support-page=${supportPage}
-            data-l10n-id="moz-box-link-anchor" title="Opens in a new tab"
+            data-l10n-id="moz-box-link-anchor"
           >
             ${template}
           </a>` : html`<a
             class="button"
             href=${this.href}
             target="_blank"
-            data-l10n-id="moz-box-link-anchor" title="Opens in a new tab"
+            data-l10n-id="moz-box-link-anchor"
           >
             ${template}
           </a>`}

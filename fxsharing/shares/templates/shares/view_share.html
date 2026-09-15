@@ -17,17 +17,15 @@
 {% block header %}
   <div class="share-header-left">
     <div class="share-title-block">
-      <h1 class="share-title">{{ share.title }}</h1>
+      <share-page-header class="share-title" heading="{{ share.title }}"></share-page-header>
       <div class="share-meta">
         {% if share.type != 'tabs' %}
-          <span class="link-count">
-            <picture>
-              <source srcset="/static/assets/folder-dark.svg" media="(prefers-color-scheme: dark)" />
-              <img src="/static/assets/folder-light.svg" alt="" />
-            </picture>
-            {{ link_count }}
-          </span>
-          <span aria-hidden="true">·</span>
+          <moz-badge
+            class="link-count"
+            iconsrc="{% static 'assets/folder.svg' %}"
+            label="{{ link_count }}"
+            title="{{ link_count }} links"
+          ></moz-badge>
         {% endif %}
         {% if expiry_text %}
           <span>{{ expiry_text }}</span>
@@ -35,7 +33,7 @@
       </div>
     </div>
     <div class="header-actions">
-      <moz-button id="copy-button" iconsrc="/static/assets/edit-copy.svg">Copy link</moz-button>
+      <moz-button id="copy-button" iconsrc="{% static 'assets/edit-copy.svg' %}">Copy link</moz-button>
     </div>
   </div>
 {% endblock %}

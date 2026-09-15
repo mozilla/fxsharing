@@ -147,6 +147,7 @@ export class MozVisualPickerItem extends SelectControlItemMixin(MozLitElement) {
 :host {
   --visual-picker-item-border-radius: var(--border-radius-medium);
   --visual-picker-item-border-width: var(--border-width);
+  --visual-picker-item-border-width-checked: calc(var(--border-width) * 3);
   --visual-picker-item-border-color: var(--border-color-interactive);
   cursor: default;
   display: flex;
@@ -157,7 +158,7 @@ export class MozVisualPickerItem extends SelectControlItemMixin(MozLitElement) {
   overflow: hidden;
   border: var(--visual-picker-item-border-width) solid var(--visual-picker-item-border-color);
   border-radius: var(--visual-picker-item-border-radius);
-  margin: 2px;
+  margin: calc(var(--visual-picker-item-border-width-checked)  - var(--visual-picker-item-border-width));
   flex: 1;
 
   &:focus {
@@ -170,7 +171,7 @@ export class MozVisualPickerItem extends SelectControlItemMixin(MozLitElement) {
   }
 
   &[checked] {
-    --visual-picker-item-border-width: 3px;
+    --visual-picker-item-border-width: var(--visual-picker-item-border-width-checked);
     border-color: var(--border-color-selected);
     margin: 0;
   }

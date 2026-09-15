@@ -9,24 +9,19 @@
 
 {% block extra_scripts %}
   <script src="{% static 'components/moz-card/moz-card.mjs' %}" type="module"></script>
+  <script src="{% static 'components/share-promo.mjs' %}" type="module"></script>
   <script src="{% static 'components/telemetry.mjs' %}" type="module"></script>
 {% endblock %}
 
 {% block content %}
   <moz-card>
-    <div class="callout">
-      <picture>
-        <source media="(max-width: 819px) and (prefers-color-scheme: dark)" srcset="{% static 'assets/kit-landing-dark-wide.svg' %}" />
-        <source media="(max-width: 819px)" srcset="{% static 'assets/kit-landing-light-wide.svg' %}" />
-        <source media="(prefers-color-scheme: dark)" srcset="{% static 'assets/kit-landing-dark.svg' %}" />
-        <img class="callout-image" src="{% static 'assets/kit-landing-light.svg' %}" alt="" />
-      </picture>
-      <div class="callout-copy">
-        <h1>Share a collection of links on any browser</h1>
-        <p>Create a public page for links from Firefox. Share a folder, tab group, or selected tabs to get started.</p>
-        <a class="cta-button fx-only" href="https://support.mozilla.org/kb/link-collections">Learn more</a>
-        <a class="cta-button not-fx" data-event="cta_click" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
-      </div>
-    </div>
+    <share-promo
+      class="callout"
+      heading="Share a collection of links on any browser"
+      message="Create a public page for links from Firefox. Share a folder, tab group, or selected tabs to get started."
+    >
+      <a slot="actions" class="cta-button fx-only" href="https://support.mozilla.org/kb/link-collections">Learn more</a>
+      <a slot="actions" class="cta-button not-fx" data-event="cta_click" href="https://www.mozilla.org/firefox/?utm_source=link_sharing">Try Firefox</a>
+    </share-promo>
   </moz-card>
 {% endblock %}

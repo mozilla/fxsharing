@@ -78,7 +78,7 @@ export default class MozInputColor extends MozLitElement {
   }
   static styles = [...MozLitElement.styles ?? [], css`/* From chrome://global/content/elements/moz-input-color.css */
 :host {
-  --moz-input-color-swatch-size: 24px;
+  --moz-input-color-swatch-size: var(--dimension-24);
   display: flex;
   align-items: center;
 }

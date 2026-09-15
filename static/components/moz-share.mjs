@@ -1,175 +1,168 @@
+import "../dependencies/acorn-icon.mjs";
 import { MozLitElement } from "../dependencies/lit-utils.mjs";
 import { css, html } from "../dependencies/lit.all.mjs";
+import "./moz-badge/moz-badge.mjs";
+import "./moz-box-group/moz-box-group.mjs";
+import MozBoxLink from "./moz-box-link/moz-box-link.mjs";
 import "./moz-button-group/moz-button-group.mjs";
 import "./moz-button/moz-button.mjs";
-import "./moz-card/moz-card.mjs";
 import "./moz-message-bar/moz-message-bar.mjs";
+import MozPageHeader from "./moz-page-header/moz-page-header.mjs";
 import "./moz-radio-group/moz-radio-group.mjs";
 import { recordEvent } from "./telemetry.mjs";
 
-// This is copied from default-favicon-light.svg but replaces the fill with
-// "currentColor". The default favicon is defined as an inline svg so that
-// fill="currentColor" works.
-const DEFAULT_FAVICON = html` <svg
-  class="favicon"
-  xmlns="http://www.w3.org/2000/svg"
-  width="16"
-  height="16"
-  fill="currentColor"
-  viewBox="0 0 16 16"
->
-  <path
-    d="M8.5 1a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15m2.447 1.75a6.26 6.26 0 0 1 3.756 5.125h-2.229A9.43 9.43 0 0 0 10.54 2.75zm-2.049 0a8.2 8.2 0 0 1 2.321 5.125H5.781A8.2 8.2 0 0 1 8.102 2.75zm-2.846 0h.408a9.43 9.43 0 0 0-1.934 5.125H2.297A6.25 6.25 0 0 1 6.052 2.75m0 11.5a6.25 6.25 0 0 1-3.755-5.125h2.229A9.43 9.43 0 0 0 6.46 14.25zm2.05 0a8.2 8.2 0 0 1-2.321-5.125h5.437a8.2 8.2 0 0 1-2.321 5.125zm2.846 0h-.409a9.4 9.4 0 0 0 1.934-5.125h2.229a6.25 6.25 0 0 1-3.754 5.125"
-  />
-</svg>`;
+// Acorn ships this as a mask-image icon, so it picks up currentColor the same
+// way the old inline copy of default-favicon-light.svg did.
+const DEFAULT_FAVICON_SRC = "/static/assets/defaultFavicon.svg";
 
-class MozLink extends MozLitElement {
+/**
+ * A single shared link, rendered as a moz-box-link so it inherits the Acorn
+ * box styling (and therefore Nova) instead of hand-rolling a card.
+ */
+class ShareLink extends MozBoxLink {
   static properties = {
     link: { type: Object },
+    faviconFailed: { type: Boolean, state: true },
   };
 
-  static styles = css`
-    moz-card {
-      --card-padding: 0;
-      --card-background-color: light-dark(
-        rgba(255, 255, 255, 0.4),
-        rgba(21, 20, 26, 0.4)
-      );
-      --card-background-color-hover: light-dark(
-        rgba(21, 20, 26, 0.07),
-        rgba(251, 251, 254, 0.07)
-      );
-      --card-border-radius: var(--border-radius-medium);
-    }
-
-    .link-anchor {
-      align-items: center;
-      border-radius: var(--border-radius-medium);
-      color: var(--text-color);
-      display: flex;
-      gap: var(--space-large);
-      padding: var(--space-large);
-      text-decoration: none;
-    }
-
-    .link-anchor:hover {
-      background-color: var(--card-background-color-hover);
-    }
-
-    .link-anchor:hover .link-title {
-      color: var(--link-color);
-    }
-
-    .link-anchor:focus-visible {
-      background-color: var(--card-background-color-hover);
-      outline: var(--focus-outline);
-      outline-offset: var(--focus-outline-offset);
-      border-radius: var(--border-radius-medium);
-    }
-
-    .favicon-container picture {
-      width: 40px;
-      height: 40px;
-    }
-
-    .favicon {
-      border-radius: var(--border-radius-small);
-      width: 40px;
-      height: 40px;
-    }
-
-    .link-text {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .link-title {
-      font-size: var(--font-size-root);
-      font-weight: var(--font-weight-semibold);
-      margin-block: 0 var(--space-xsmall);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .link-url {
-      color: var(--text-color-deemphasized);
-      font-size: var(--font-size-xsmall);
-      margin: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .external-icon {
-      width: var(--size-item-xsmall);
-      height: var(--size-item-xsmall);
-      flex-shrink: 0;
-    }
-
-    @media (max-width: 964px) {
-      .favicon-container picture {
-        width: var(--size-item-medium);
-        height: var(--size-item-medium);
+  static styles = [
+    ...MozBoxLink.styles,
+    css`
+      :host {
+        --box-icon-size: 40px;
+        --box-icon-border-radius: var(--border-radius-small);
+        --box-label-font-weight: var(--font-weight-semibold);
       }
 
-      .favicon {
-        width: var(--size-item-medium);
-        height: var(--size-item-medium);
+      /* --box-icon-size sizes every .icon, but only the favicon wants to be
+         big; the trailing open-in-new stays a normal UI icon. */
+      .nav-icon {
+        width: var(--icon-size);
+        height: var(--icon-size);
       }
-    }
-  `;
 
-  handleLinkClick() {
-    recordEvent("link_click", {});
+      /* Keep the favicon beside both lines of text rather than letting the URL
+         wrap underneath it, which is what moz-box-common does by default. */
+      .text-content.has-icon.has-description {
+        grid-template-areas:
+          "icon label"
+          "icon description";
+        row-gap: var(--space-xxsmall);
+      }
+
+      /* Titles and URLs are arbitrary length, so clip rather than wrap. Grid
+         items need min-width: 0 before text-overflow can kick in. */
+      .label,
+      .description {
+        display: block;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* moz-box-base tags this .text-deemphasized, but acorn's @import of
+         text-and-typography.css is dropped when lit adopts the stylesheet, so
+         spell the deemphasized styles out. */
+      .description {
+        color: var(--text-color-deemphasized);
+        font-size: var(--font-size-small);
+      }
+
+      a:hover .label {
+        color: var(--link-color);
+      }
+
+      @media (max-width: 964px) {
+        :host {
+          --box-icon-size: var(--size-item-medium);
+        }
+      }
+    `,
+  ];
+
+  constructor() {
+    super();
+    this.addEventListener("click", () => recordEvent("link_click", {}));
+  }
+
+  willUpdate(changedProperties) {
+    super.willUpdate?.(changedProperties);
+    if (changedProperties.has("link")) {
+      this.faviconFailed = false;
+    }
+    this.href = this.link?.url ?? "";
+    this.label = this.link?.preview_title || this.link?.title || "";
+    this.description = this.link?.url ?? "";
+    // Always set, so moz-box-common lays out the icon column either way.
+    this.iconSrc =
+      (!this.faviconFailed && this.link?.favicon_url) || DEFAULT_FAVICON_SRC;
+  }
+
+  firstUpdated(changedProperties) {
+    super.firstUpdated?.(changedProperties);
+    // moz-box-link only sets target="_blank". Browsers imply noopener there but
+    // not noreferrer, and we don't want to leak the share URL to link targets.
+    this.renderRoot.querySelector("a")?.setAttribute("rel", "noopener noreferrer");
+  }
+
+  iconTemplate() {
+    if (!this.link?.favicon_url || this.faviconFailed) {
+      // No favicon, or the site's one 404s: fall back to the masked default.
+      return super.iconTemplate();
+    }
+    // A favicon is full colour, so it has to be a real <img> — the <acorn-icon>
+    // the base class uses would flatten it into a currentColor silhouette.
+    return html`<img
+      class="icon"
+      src=${this.link.favicon_url}
+      alt=""
+      @error=${this.handleFaviconError}
+    />`;
+  }
+
+  handleFaviconError() {
+    this.faviconFailed = true;
   }
 
   render() {
     if (!this.link?.url) {
       return null;
     }
-
-    const title = this.link.preview_title || this.link.title;
-
-    return html`
-      <moz-card>
-        <a
-          class="link-anchor"
-          href=${this.link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          @click=${this.handleLinkClick}
-        >
-          <div class="favicon-container">
-            <picture>
-              ${this.link.favicon_url
-                ? html`<img class="favicon" src=${this.link.favicon_url} />`
-                : DEFAULT_FAVICON}
-            </picture>
-          </div>
-          <div class="link-text">
-            <p class="link-title">${title}</p>
-            <p class="link-url">${this.link.url}</p>
-          </div>
-          <picture aria-hidden="true">
-            <source
-              srcset="/static/assets/open-dark.svg"
-              media="(prefers-color-scheme: dark)"
-            />
-            <img
-              class="external-icon"
-              src="/static/assets/open-light.svg"
-              alt=""
-            />
-          </picture>
-        </a>
-      </moz-card>
-    `;
+    return super.render();
   }
 }
-customElements.define("moz-link", MozLink);
+customElements.define("share-link", ShareLink);
+
+/**
+ * The share title, rendered as a moz-page-header.
+ *
+ * Two things the vendored component can't do on its own: Acorn doesn't inline
+ * text-and-typography.css into component shadow roots, so its <h1> falls back
+ * to the UA's 2em; and share titles are user-supplied, so the heading has to
+ * clip rather than wrap. Both have to be fixed from inside the shadow root.
+ */
+class SharePageHeader extends MozPageHeader {
+  static styles = [
+    ...MozPageHeader.styles,
+    css`
+      .page-header-container,
+      .heading {
+        min-width: 0;
+      }
+
+      h1 {
+        font-weight: var(--font-weight-heading);
+        font-size: var(--font-size-heading-xlarge);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    `,
+  ];
+}
+customElements.define("share-page-header", SharePageHeader);
 
 class MozShare extends MozLitElement {
   static properties = {
@@ -188,15 +181,19 @@ class MozShare extends MozLitElement {
       }
     }
 
+    /* Mixed off currentColor rather than the button tokens: Nova makes
+       --button-background-color transparent, which erases the placeholder. */
     .skeleton-bar,
     .skeleton-favicon {
+      --skeleton-color: color-mix(in srgb, currentColor 8%, transparent);
+      --skeleton-highlight: color-mix(in srgb, currentColor 16%, transparent);
       background: linear-gradient(
         90deg,
-        var(--button-background-color) 0%,
-        var(--button-background-color) 30%,
-        var(--button-background-color-hover) 50%,
-        var(--button-background-color) 70%,
-        var(--button-background-color) 100%
+        var(--skeleton-color) 0%,
+        var(--skeleton-color) 30%,
+        var(--skeleton-highlight) 50%,
+        var(--skeleton-color) 70%,
+        var(--skeleton-color) 100%
       );
       background-size: 300% 100%;
       animation: skeleton-shimmer 3.5s linear infinite;
@@ -206,29 +203,25 @@ class MozShare extends MozLitElement {
       border-radius: var(--border-radius-circle);
     }
 
-    .skeleton-title {
-      height: var(--size-item-medium);
-      width: 100%;
-      margin-block-end: var(--space-small);
-    }
-
-    .skeleton-meta {
-      height: var(--font-size-large);
-      width: 70%;
+    /* Mirrors moz-box-group: one outlined container, rows split by a rule. */
+    .skeleton-list {
+      border: var(--border-width) solid var(--border-color);
+      border-radius: var(--border-radius-medium);
+      list-style: none;
+      margin: 0;
+      overflow: hidden;
+      padding: 0;
     }
 
     .skeleton-item {
       display: flex;
       align-items: center;
-      gap: var(--space-large);
+      gap: var(--space-small);
       padding: var(--space-large);
-      background: light-dark(
-        var(--color-white-alpha-20),
-        var(--color-black-alpha-20)
-      );
-      border: var(--border-width) solid var(--border-color-card);
-      border-radius: var(--border-radius-small);
-      box-shadow: var(--box-shadow-card);
+    }
+
+    .skeleton-item + .skeleton-item {
+      border-block-start: var(--border-width) solid var(--border-color);
     }
 
     .skeleton-favicon {
@@ -243,7 +236,7 @@ class MozShare extends MozLitElement {
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: var(--space-xsmall);
+      gap: var(--space-xxsmall);
     }
 
     .skeleton-bar-title {
@@ -292,15 +285,12 @@ class MozShare extends MozLitElement {
     }
 
     .link-list {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-medium);
       margin-block-end: var(--size-item-large);
     }
 
     .share-footer {
       align-items: flex-start;
-      border-top: var(--border-width) solid var(--border-color-card);
+      border-top: var(--border-width) solid var(--border-color);
       display: flex;
       justify-content: center;
       gap: var(--size-item-xlarge);
@@ -316,9 +306,10 @@ class MozShare extends MozLitElement {
       max-width: 250px;
     }
 
-    .disclaimer picture {
-      display: flex;
+    .disclaimer acorn-icon {
       flex-shrink: 0;
+      /* Match the paragraph it sits next to. */
+      color: var(--text-color-deemphasized);
     }
 
     .disclaimer p {
@@ -379,8 +370,8 @@ class MozShare extends MozLitElement {
     }
 
     .report-header-icon {
-      display: flex;
       flex-shrink: 0;
+      color: var(--icon-color);
     }
 
     .report-title {
@@ -408,10 +399,6 @@ class MozShare extends MozLitElement {
         padding-inline: var(--space-medium);
       }
 
-      .link-list {
-        gap: var(--space-large);
-      }
-
       .share-footer {
         justify-content: space-between;
         gap: 0;
@@ -429,7 +416,7 @@ class MozShare extends MozLitElement {
   static queries = {
     reportDialog: "#report-dialog",
     reportForm: "#report-dialog form",
-    mozLinks: { all: "moz-link" },
+    shareLinks: { all: "share-link" },
   };
 
   static MAX_RETRIES = 10;
@@ -508,7 +495,7 @@ class MozShare extends MozLitElement {
           // Use exponential backoff for requesting the favicons
           const delay = Math.min(
             MozShare.MAX_DELAY,
-            MozLink.BASE_DELAY * Math.pow(2, attempt),
+            MozShare.BASE_DELAY * Math.pow(2, attempt),
           );
           const jitter = Math.random() * delay;
 
@@ -534,7 +521,7 @@ class MozShare extends MozLitElement {
         );
         matchedHosts.forEach((l) => (l.favicon_url = favicon_url));
       }
-      this.mozLinks.forEach((ml) => ml.requestUpdate());
+      this.shareLinks.forEach((el) => el.requestUpdate());
       return;
     }
 
@@ -602,19 +589,19 @@ class MozShare extends MozLitElement {
     return html`
       <div class="share-page">
         <div class="share-content">
-          <div class="link-list" role="list">
+          <ul class="link-list skeleton-list">
             ${skeletonItems.map(
               () => html`
-                <div class="skeleton-item" role="listitem">
+                <li class="skeleton-item">
                   <div class="skeleton-favicon"></div>
                   <div class="skeleton-text">
                     <div class="skeleton-bar skeleton-bar-title"></div>
                     <div class="skeleton-bar skeleton-bar-url"></div>
                   </div>
-                </div>
+                </li>
               `,
             )}
-          </div>
+          </ul>
           <footer class="share-footer">${this.renderFooterLinks(true)}</footer>
         </div>
       </div>
@@ -629,23 +616,20 @@ class MozShare extends MozLitElement {
     return html`
       <div class="share-page">
         <div class="share-content">
-          <div class="link-list">
+          <moz-box-group class="link-list" type="list">
             ${this.flatLinks.map(
-              (link) => html`<moz-link .link=${link}></moz-link>`,
+              (link) => html`<share-link .link=${link}></share-link>`,
             )}
-          </div>
+          </moz-box-group>
 
           <slot name="promo"></slot>
 
           <footer class="share-footer">
             <div class="disclaimer">
-              <picture>
-                <source
-                  srcset="/static/assets/users-dark.svg"
-                  media="(prefers-color-scheme: dark)"
-                />
-                <img src="/static/assets/users-light.svg" alt="" />
-              </picture>
+              <acorn-icon
+                src="/static/assets/users.svg"
+                role="presentation"
+              ></acorn-icon>
               <p>
                 Created by a Firefox user. Mozilla does not review or approve
                 these links. Open links only if you trust the sender.
@@ -658,13 +642,11 @@ class MozShare extends MozLitElement {
         <dialog id="report-dialog">
           <form method="post" action="/report/${this.share.shortcode}">
             <div class="report-header">
-              <picture class="report-header-icon">
-                <source
-                  srcset="/static/assets/info-dark.svg"
-                  media="(prefers-color-scheme: dark)"
-                />
-                <img src="/static/assets/info-light.svg" alt="" />
-              </picture>
+              <acorn-icon
+                class="report-header-icon"
+                src="/static/assets/info.svg"
+                role="presentation"
+              ></acorn-icon>
               <h2 class="report-title">Why are you reporting this page?</h2>
             </div>
             <moz-radio-group

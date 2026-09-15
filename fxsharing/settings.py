@@ -127,6 +127,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "fxsharing.shares.context_processors.analytics",
+                "fxsharing.shares.context_processors.nova",
             ],
         },
     },
@@ -301,3 +302,8 @@ CELERY_TASK_ANNOTATIONS = {
 }
 
 GA_MEASUREMENT_ID = env("GA_MEASUREMENT_ID", default="")
+
+# Nova is Firefox's visual refresh. Until it ships we keep it off by default and
+# opt in per-request with ?nova=1 so it can be reviewed on staging. Flip this to
+# True (and eventually delete the toggle) when Nova goes out.
+NOVA_ENABLED = env.bool("NOVA_ENABLED", default=False)
